@@ -8,9 +8,9 @@ import (
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
-	_ "github.com/rfyiamcool/grpcall"
-	_ "google.golang.org/grpc/metadata"
-	_ "google.golang.org/grpc/status"
+	//_ "github.com/rfyiamcool/grpcall"
+	//_ "google.golang.org/grpc/metadata"
+	//_ "google.golang.org/grpc/status"
 	"log"
 	"strings"
 	"sync"
@@ -83,7 +83,7 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 		return nil, nil
 	}
 	log.Printf("json2pb; namespace=> %s; messageName=> %s", namespace, messageName)
-	fmt.Println( " jsonStr>> ",string(jsonStr))
+	fmt.Println(" jsonStr>> ", string(jsonStr))
 	msg := fd.FindMessage(messageName)
 	if msg == nil {
 		fmt.Println("no msg", messageName)

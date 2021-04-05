@@ -281,55 +281,55 @@ func ProtocalEncode() {
 
 }
 
-
-func Compose (t uint8, data []byte, id int64) []byte{
+func Compose(t uint8, data []byte, id int64) []byte {
 	if t == 0 && len(data) == 0 {
 		fmt.Println("data should not be empty.")
-		return nil;
+		return nil
 	}
 
 	var buf []byte
-	var dataLen int64;
+	var dataLen int64
 	if data != nil {
-		dataLen ++;
+		dataLen++
 		lsize := calLengthSize(dataLen)
-		buf = make([]byte, lsize + dataLen)
-		fillLenght(buf ,uint8(dataLen), lsize)
-		buf[lsize] = t;
-		var off int64 = lsize + 1;
-		for  i := 0 ; i<len(data); i++ {
-			buf[off + int64(i)] = data[i]
+		buf = make([]byte, lsize+dataLen)
+		fillLenght(buf, uint8(dataLen), lsize)
+		buf[lsize] = t
+		var off int64 = lsize + 1
+		for i := 0; i < len(data); i++ {
+			buf[off+int64(i)] = data[i]
 		}
 	} else {
-		dataLen = 1;
+		dataLen = 1
 		lsize := calLengthSize(dataLen)
-		buf = make([]byte, lsize + dataLen)
+		buf = make([]byte, lsize+dataLen)
 		fillLenght(buf, uint8(dataLen), lsize)
-		buf[lsize] = t;
+		buf[lsize] = t
 	}
 
-	return buf;
+	return buf
 }
 
-func calLengthSize (length int64) int64{
+func calLengthSize(length int64) int64 {
 	var res int64
 	for length > 0 {
 		length >>= 7
-		res ++
+		res++
 	}
-	return res;
+	return res
 }
 
 var LEFT_SHIFT_BITS uint8 = 1 << 7
-func fillLenght (buf []byte, data uint8, size int64) {
-	offset := size - 1;
+
+func fillLenght(buf []byte, data uint8, size int64) {
+	offset := size - 1
 	var b uint8
 	for ; offset >= 0; offset-- {
 		b = data % LEFT_SHIFT_BITS
-		if offset < size - 1 {
+		if offset < size-1 {
 			b |= 0x80
 		}
-		buf[offset] = b;
+		buf[offset] = b
 		data >>= 7
 	}
 }

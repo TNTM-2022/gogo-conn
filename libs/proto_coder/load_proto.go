@@ -1,9 +1,9 @@
 package proto_coder
 
 import (
-	"../config"
 	"context"
 	"fmt"
+	"gogo-connector/components/config"
 	"os"
 	"path"
 	"time"
@@ -23,9 +23,9 @@ func WatchProtos(ctx context.Context) {
 }
 
 func load(ctx context.Context) bool {
-	p := *conf.ProtoPath
+	p := *config.ProtoPath
 	fi, err := os.Stat(p)
-	if err != nil {
+	if err != nil || !fi.Mode().IsDir() {
 		fmt.Println("load proto error=>", err)
 		t := time.NewTimer(time.Second * 5)
 		select {
@@ -41,22 +41,7 @@ func load(ctx context.Context) bool {
 		}
 	}
 
-	if !fi.Mode().IsDir() {
-		t := time.NewTimer(time.Second * 5)
-		select {
-		case <-t.C:
-			{
-				return true
-			}
-		case <-ctx.Done():
-			{
-				t.Stop()
-				return false
-			}
-		}
-	}
-
-	for _, f := range (lsfiles(p)) {
+	for _, f := range lsfiles(p) {
 		if ext := path.Ext(f.Name()); ext != ".proto" {
 			//fmt.Println(f)
 			continue
@@ -88,7 +73,7 @@ func load(ctx context.Context) bool {
 func lsfiles(p string) []os.FileInfo {
 	f, err := os.Open(p)
 	if err != nil {
-		fmt.Println(err);
+		fmt.Println(err)
 		return nil
 	}
 	defer func() { _ = f.Close() }()
@@ -97,5 +82,5 @@ func lsfiles(p string) []os.FileInfo {
 	if err != nil {
 		fmt.Println(err)
 	}
-	return fs;
+	return fs
 }

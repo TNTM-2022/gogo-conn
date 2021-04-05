@@ -2,39 +2,35 @@ package main
 
 import (
 	"context"
-	types "go-connector/interfaces"
-	"go-connector/libs/front_server"
+	"fmt"
+	"gogo-connector/components/monitor"
+	"gogo-connector/components/ws_front"
 	"log"
-	"net"
 	"os"
 	"os/signal"
 	"sync"
 )
 
-func getTCPListener() (net.Listener, error) {
-	l, err := net.Listen("tcp", "127.0.0.1:12345")
-	return l, err
-}
-
 func main() {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	mc := types.MainControl{ctx, &wg}
-
-	l, err := getTCPListener()
-	if err != nil {
-		log.Fatal(err)
-	}
-	host, port, err := net.SplitHostPort(l.Addr().String())
-	log.Println("ws listen on port:", host, port)
-
 	wg.Add(1)
-	go front_server.StartWsServer(mc, l)
+	fmt.Println("111")
+	go ws_front.StartWsServer(ctx, &wg)
+	go monitor.RegisterServer(ctx, cancelFn, &wg)
 
+	gracefulshutdown(ctx, cancelFn, &wg, monitor.QuitCtx)
+}
+
+func gracefulshutdown(ctx context.Context, cancelFn context.CancelFunc, wg *sync.WaitGroup, quitCtx context.Context) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
-	<-quit
+	select {
+	case <-quit:
+	case <-quitCtx.Done():
+		close(quit)
+	}
 	cancelFn()
 	wg.Wait()
 	log.Println("graceful shutdowning")

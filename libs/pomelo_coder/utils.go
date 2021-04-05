@@ -65,11 +65,11 @@ func encodeMsgID(id uint64, buffer []byte, offset int) int {
 
 	buf := make([]byte, binary.MaxVarintLen64)
 	n := binary.PutUvarint(buf, id)
-	for i:=0 ; i< n ; i++ {
+	for i := 0; i < n; i++ {
 		buffer[offset] = buf[i]
 		offset++
 	}
- 	return offset
+	return offset
 }
 
 func encodeMsgRoute(compressRoute int, route string, buffer []byte, offset int) (int, []byte) {
