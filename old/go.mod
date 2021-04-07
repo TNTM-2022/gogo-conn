@@ -19,6 +19,7 @@ require (
 	github.com/onsi/gomega v1.11.0 // indirect
 	github.com/orcaman/concurrent-map v0.0.0-20210106121528-16402b402231
 	github.com/shirou/gopsutil v3.21.3+incompatible
+	github.com/shirou/gopsutil/v3 v3.21.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	golang.org/x/net v0.0.0-20210331212208-0fccb6fa2b5c // indirect
 	google.golang.org/grpc v1.27.0

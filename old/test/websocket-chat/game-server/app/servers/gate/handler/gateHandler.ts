@@ -7,6 +7,9 @@ export default function (app: Application) {
 
 export class GateHandler {
     constructor(private app: Application) {
+        setInterval(() => {
+            console.log(app.get('onlineUser'))
+        }, 2000)
     }
 
     async test (msg: {uid: string}, session: BackendSession) {

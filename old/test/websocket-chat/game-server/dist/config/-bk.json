@@ -26,3 +26,14 @@
         ]
   }
 }
+
+
+"gate": [
+{
+"id": "gate-server-1",
+"host": "127.0.0.1",
+"frontend": false,
+"port":36052,
+"args": "--inspect=10003"
+}
+]

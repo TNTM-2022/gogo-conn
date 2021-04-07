@@ -22,6 +22,7 @@ type UserChannel struct {
 
 var Users = concurrentMap.New() // make(map[uint64]int32)
 var Sids = concurrentMap.New()
+var BlackList = concurrentMap.New()
 
 func init() {
 	for i := 0; i < UserCap; i++ {

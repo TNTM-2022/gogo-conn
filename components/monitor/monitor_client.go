@@ -6,42 +6,26 @@ import (
 	"fmt"
 	paho "github.com/eclipse/paho.mqtt.golang"
 	cfg "gogo-connector/components/config"
-	"gogo-connector/components/global"
+	"gogo-connector/components/monitor/console"
+	"gogo-connector/components/monitor/mointor_watcher"
+	"gogo-connector/components/monitor/monitor_log"
+	"gogo-connector/components/monitor/node_info"
+	"gogo-connector/components/monitor/online_user"
+	"gogo-connector/components/monitor/system_info"
+	"gogo-connector/components/monitor/types"
 	"gogo-connector/libs/mqtt"
 	"log"
 	"os"
-	"runtime"
 	"sync"
 )
 
-type RegisterInfoRemoterPaths struct {
-	Namespace  string `json:"namespace"`
-	ServerType string `json:"serverType"`
-	Path       string `json:"path"`
-}
-type RegisterInfo struct {
-	Main       string `json:"main"`
-	Env        string `json:"env"`
-	ServerID   string `json:"id"`
-	Host       string `json:"host"`
-	Port       int32  `json:"port"`
-	ClientPort int32  `json:"clientPort"`
-	Frontend   string `json:"frontend"`
-	ServerType string `json:"serverType"`
-	Token      string `json:"token"`
-	PID        int32  `json:"pid"`
-
-	RemotePaths  []RegisterInfoRemoterPaths `json:"remotePaths"`
-	HandlerPaths []string                   `json:"handlerPaths"`
-}
-
 type Register struct {
-	ServerID   string       `json:"id"`
-	Type       string       `json:"type"`
-	ServerType string       `json:"serverType"`
-	PID        int32        `json:"pid"`
-	Info       RegisterInfo `json:"info"`
-	Token      string       `json:"token"`
+	ServerID   string             `json:"id"`
+	Type       string             `json:"type"`
+	ServerType string             `json:"serverType"`
+	PID        int32              `json:"pid"`
+	Info       types.RegisterInfo `json:"info"`
+	Token      string             `json:"token"`
 }
 
 type SubscribeBody struct {
@@ -59,81 +43,34 @@ type RegisterResp struct {
 	Msg  string `json:"msg"`
 }
 
-type MonitorBody struct {
-	Signal   string       `json:"signal"`
-	Action   string       `json:"action"`
-	Server   RegisterInfo `json:"server"`
-	ServerID string       `json:"id"`
-}
-type Monitor struct {
-	RespId   int64       `json:"respId"`
-	ReqID    int64       `json:"reqId"`
-	ModuleID string      `json:"moduleId"`
-	Body     MonitorBody `json:"body"`
-	Command  string      `json:"command"`
-}
-
-type MonitListInfoBody struct {
-	ServerID   string  `json:"serverId"`
-	ServerType string  `json:"serverType"`
-	Pid        int     `json:"pid"`
-	RSS        uint64  `json:"rss"`
-	HeapTotal  uint64  `json:"heapTotal"`
-	HeapUsed   uint64  `json:"heapUsed"`
-	Uptime     float64 `json:"uptime"`
-}
-type MonitListInfo struct {
-	ServerID string            `json:"serverId"`
-	Body     MonitListInfoBody `json:"body"`
-}
-
-type MonitListInfoRes struct {
-	RespID int64         `json:"respId"`
-	Error  MonitListInfo `json:"error"`
-}
-
 type ClientActionRes struct {
 	RespId int64 `json:"respId"`
 	Error  int32 `json:"error"`
 }
 
-type MonitorServers map[string]RegisterInfo
-type MonitorAllServer struct {
-	RespId   int64          `json:"respId"`
-	ReqID    int64          `json:"reqId"`
-	ModuleID string         `json:"moduleId"`
-	Body     MonitorServers `json:"body"`
-	Command  string         `json:"command"`
-}
+type MonitorServers map[string]types.RegisterInfo
+
+//type MonitorAllServer struct {
+//	RespId   int64          `json:"respId"`
+//	ReqID    int64          `json:"reqId"`
+//	ModuleID string         `json:"moduleId"`
+//	Body     MonitorServers `json:"body"`
+//	Command  string         `json:"command"`
+//}
 
 type MonitRespOk struct {
-	RespID int64       `json:"respId"`
-	Body   MonitorBody `json:"body"`
+	RespID int64 `json:"respId"`
+	Body   int32 `json:"body"`
+	Error  int32 `json:"error"`
 }
 
-type onlineUserResp struct {
-	ServerId       string `json:"serverId"`
-	TotalConnCount int    `json:"totalConnCount"`
-	LoginedCount   int    `json:"loginedCount"`
-	loginedList    []UserReq
+var QuitCtx, QuitFn = context.WithCancel(context.Background()) // graceful shutdown
+
+type Client struct {
+	reqId int64
 }
 
-func DecodeMonitorAllServer(d []byte) MonitorAllServer {
-	var mm MonitorAllServer
-	var ss string
-
-	if e := json.Unmarshal(d, &ss); e == nil {
-		d = []byte(ss)
-	}
-	if e := json.Unmarshal(d, &mm); e != nil {
-		fmt.Println(mm, e)
-	}
-	return mm
-}
-
-var QuitCtx, QuitFn = context.WithCancel(context.Background())
-
-func RegisterServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.WaitGroup) {
+func MonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	mqttClient := mqtt.CreateMQTTClient(&mqtt.MQTT{
@@ -146,7 +83,7 @@ func RegisterServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.W
 		KeepAliveSec:    5,
 		PingTimeoutSec:  10,
 
-		OnConnectCb: regServer,
+		OnConnectCb: regServerCb,
 		OnPublishCb: publishCb,
 	})
 	mqttClient.Start()
@@ -155,7 +92,7 @@ func RegisterServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.W
 	// 客户端退出
 }
 
-func regServer(mqttClient *mqtt.MQTT) {
+func regServerCb(mqttClient *mqtt.MQTT) {
 	// 注册server， 携带 token
 	m, _ := os.Getwd()
 	regInfo := Register{
@@ -163,64 +100,70 @@ func regServer(mqttClient *mqtt.MQTT) {
 		Type:       "monitor",
 		ServerType: *cfg.ServerType,
 		PID:        int32(cfg.Pid),
-		Info: RegisterInfo{
-			Main:       m,
-			Env:        *cfg.Env,
-			ServerID:   *cfg.ServerID,
-			Host:       *cfg.MqttServerHost, // mqtt server host
-			Port:       int32(0),            // mqtt server port
-			ClientPort: int32(0),
-			Frontend:   "true",
-			ServerType: "connector",
-			Token:      "ok",
+		Info: types.RegisterInfo{
+			Main:         m,
+			Env:          *cfg.Env,
+			ServerID:     *cfg.ServerID,
+			Host:         *cfg.MqttServerHost, // mqtt server host
+			Port:         int32(0),            // mqtt server port
+			ClientPort:   int32(0),            // ws server port
+			Frontend:     "true",
+			ServerType:   "connector",
+			Token:        "ok",
+			RemotePaths:  make([]types.RegisterInfoRemoterPaths, 1),
+			HandlerPaths: make([]string, 1),
 		},
 		Token: "ok",
 	}
 	regStr, _ := json.Marshal(regInfo)
-	mqttClient.Publish("register", regStr, 0)
-	fmt.Println(string(regStr))
-	log.Println("+++ monitor registed")
+	mqttClient.Publish("register", regStr, 0, false) // 直接发送 lib/monitor/monitorAgent line 151
+	log.Println("monitor registed")
 
-	subServer := Subscribe{
-		ReqID:    1,
-		ModuleID: "__masterwatcher__",
-		Body: SubscribeBody{
-			Action:   "subscribe",
-			ServerID: *cfg.ServerID,
-		},
+	subServer := SubscribeBody{
+		Action:   "subscribe",
+		ServerID: *cfg.ServerID,
 	}
 	subStr, _ := json.Marshal(subServer)
-	mqttClient.Publish("monitor", subStr, 0)
+	//mqttClient.Publish("monitor", subStr, 0, true)
+	mqttClient.Request("monitor", "__masterwatcher__", subStr, func(err string, data []byte) {
+		//  if err == ""
+		monitAllServerMap := DecodeMonitorAllServer(data)
+		serv := make([]types.RegisterInfo, 0, len(monitAllServerMap))
+		for i, v := range monitAllServerMap {
+			if i != *cfg.ServerID {
+				serv = append(serv, v)
+			}
+		}
+		mointor_watcher.AddServers(serv)
+	})
 
 	fmt.Println(string(regStr), string(subStr))
 
 	log.Println("+++ monitor start monitor")
-
 }
 
-func publishCb(mqttClient paho.Client, m paho.Message) {
-	fmt.Println("publish cb ", string(m.Payload()))
+func publishCb(mqttClient *mqtt.MQTT, m paho.Message) {
+	fmt.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
 	switch m.Topic() {
 	case "register":
 		handleRegisterTopic(m)
 	case "monitor":
-		handleMonitorTopic(m, mqttClient)
+		handleMonitorTopic(mqttClient, m)
 	case "connect":
 		{
 			fmt.Println("connect")
 		}
 	default:
 		{
-			fmt.Println("unhandled Topic++++>>>>", m.Topic(), string(m.Payload()))
+			fmt.Println("unhandled Topic++++", m.Topic(), string(m.Payload()))
 		}
 	}
 
 }
 
-func DecodeMonitor(d []byte) Monitor {
-	var mm Monitor
+func DecodeMonitor(d []byte) types.Monitor {
+	var mm types.Monitor
 	var ss string
-
 	if e := json.Unmarshal(d, &ss); e == nil {
 		d = []byte(ss)
 	}
@@ -231,7 +174,7 @@ func DecodeMonitor(d []byte) Monitor {
 }
 
 // =================================
-// todo 重连 注册问题
+// todo 多 master 机制
 func handleRegisterTopic(m paho.Message) {
 	log.Println("-- server registed to master")
 	var res RegisterResp
@@ -246,163 +189,202 @@ func handleRegisterTopic(m paho.Message) {
 	}
 }
 
-func handleMonitorTopic(m paho.Message, mqttClient paho.Client) {
+func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 	monit := DecodeMonitor(m.Payload())
-	var resp []byte = nil
-	log.Println(monit.Body, " --- monit.Signal", monit.Body.Signal, " --- monit.Action", monit.Body.Action, "--- monit.Command", monit.Command)
+	if monit.ModuleID != "onlineUser" {
+		log.Println(monit.Body, " --- monit.Signal", monit.Body.Signal, " --- monit.Action", monit.Body.Action, "--- monit.Command", monit.Command, string(m.Payload()))
+	}
 
 	if monit.Command != "" {
-		fmt.Println("not support command")
+		fmt.Println("not support command", monit.Command)
 		return
 	}
+	if monit.RespId > 0 {
 
-	// todo 确认
-	//if monit.RespId != 0 {
-	//	fmt.Println("unsupport resp", monit.RespId);
-	//	//return;
-	//}
-
-	if monit.Body.Signal != "" {
-		switch monit.Body.Signal {
-		case "list":
-			{
-				resp = handleListSignal(monit)
-			}
-		case "stop", "kill":
-			{
-				QuitFn()
-			}
-		default:
-			{
-				fmt.Println("unhandled Monitor Signal: ", m.Topic(), string(m.Payload()))
-			}
+	}
+	var req, respErr, respBody, notify []byte
+	switch monit.ModuleID {
+	case "__console__":
+		{
+			req, respBody, respErr, notify = console.MonitorHandler(monit.Body.Signal, QuitFn, monit.Body.BlackList)
 		}
-	} else if monit.Body.Action != "" {
-		switch monit.Body.Action {
-		case "addServer":
-			{
-				AddServer(&monit.Body.Server)
-				fmt.Println("------- ........ ADD")
-			}
-		case "removeServer":
-			{
-				fmt.Println("------- ........ Remove")
-				RemoveServer(monit.Body.ServerID)
-			}
-		default:
-			{
-				if monit.Body.Action != "" {
-					fmt.Println("unhandled Monitor Action: ", m.Topic(), string(m.Payload()))
-					return
-				}
-			}
+	case "__monitorwatcher__":
+		{
+			req, respBody, respErr, notify = mointor_watcher.MonitorHandler(monit.Body.Action, &monit.Body)
 		}
+	case "onlineUser":
+		{
+			req, respBody, respErr, notify = online_user.MointorHandler(monit.Body.ServerID)
+		}
+	case "RestartNotifyModule":
+		{
 
-		if monit.ReqID == 0 {
-			fmt.Println(monit.ReqID, "  ReqID")
+		}
+	case "watchServer":
+		{
+
+		}
+	case "monitorLog":
+		{
+			req, respBody, respErr, notify = monitor_log.MonitorHandler()
+		}
+	case "profiler":
+		{
+			fmt.Println("profiling coming")
 			return
 		}
+	case "scripts":
+		{
+			//req, respBody, respErr, notify =
+		}
+	case "nodeInfo":
+		{
+			req, respBody, respErr, notify = node_info.MonitorHandler()
+		}
+	case "systemInfo":
+		{
+			req, respBody, respErr, notify = system_info.MointorHandler()
+		}
+	default:
+		{
+			fmt.Println(" *************    receive unknow moduleId: %v, %v", monit.ModuleID, string(m.Payload()))
+		}
 
-		//rr := &ClientActionRes{
-		//	RespId: monit.ReqID,
-		//	Error:  1,
+	}
+
+	if req != nil { // todo 应该不存在
+		mqttClient.Request("monitor", monit.ModuleID, req, func(err string, data []byte) {
+			log.Println("request get a response", string(err), string(data))
+		})
+	} else if notify != nil {
+		mqttClient.Notify("monitor", monit.ModuleID, notify)
+	} else if respBody != nil || respErr != nil {
+		mqttClient.Response("monitor", monit.ReqID, respErr, respBody)
+	}
+
+	/*
+
+		if monit.Body.Action != "" {
+			switch monit.Body.Action {
+			case "addServer":
+				{
+					mointor_watcher.AddServer(&monit.Body.Server)
+					fmt.Println("------- ........ ADD")
+				}
+			case "removeServer":
+				{
+					fmt.Println("------- ........ Remove")
+					mointor_watcher.RemoveServer(monit.Body.ServerID)
+				}
+			default:
+				{
+					if monit.Body.Action != "" {
+						fmt.Println("unhandled Monitor Action: ", m.Topic(), string(m.Payload()))
+						return
+					}
+				}
+			}
+
+			//if monit.ReqID == 0 {
+			//	fmt.Println(monit.ReqID, "  ReqID")
+			//	return
+			//}
+
+			//rr := &ClientActionRes{
+			//	RespId: monit.ReqID,
+			//	Error:  1,
+			//}
+
+			rr := &MonitRespOk{
+				RespID: monit.ReqID,
+				Body:   1,
+				Error:  1, //  乱七八糟的用 注意返回值包裹在 body 还是 error 里
+			}
+			var e error
+			if resp, e = json.Marshal(rr); e != nil {
+				fmt.Println(e)
+			}
+		} else if monit.ModuleID == "" && monit.RespId > 0 {
+			monitAllServer := DecodeMonitorAllServer(m.Payload())
+			fmt.Println(string(m.Payload()))
+			mointor_watcher.AddServers(monitAllServer.Body)
+			fmt.Println("add servers ** ", monitAllServer.Body)
+			rr := &MonitRespOk{
+				RespID: monit.ReqID,
+				Body:   1,
+			}
+			var e error
+			if resp, e = json.Marshal(rr); e != nil {
+				fmt.Println(e)
+			}
+		}
+
+		//		if (protocol.isRequest(msg)) {
+		//			let resp = protocol.composeResponse(msg, err, res);
+		//			if (resp) {
+		//				self.doSend('monitor', resp);
+		//			}
+		//		}
+		//		else {
+		//			// notify should not have a callback
+		//			logger.error('notify should not have a callback.');
+		//		}
+		//	});
 		//}
-
-		rr := &MonitRespOk{
-			RespID: monit.ReqID,
-			Body: MonitorBody{
-				Action: monit.Body.Action,
-			},
-		}
-		var e error
-		if resp, e = json.Marshal(rr); e != nil {
-			fmt.Println(e)
-		}
-	} else if monit.ModuleID == "" && monit.RespId > 0 {
-		monitAllServer := DecodeMonitorAllServer(m.Payload())
-		AddServers(monitAllServer.Body)
-		fmt.Println("add servers ** ", monitAllServer.Body)
-
-	} else if monit.ModuleID == "onlineUser" {
-		//fmt.Println("----- ....... OnlineUser")
-		resp = reportOnlineUser(monit.Body.ServerID)
-	} else {
-		fmt.Println("unhandled Monit++++>>>>", m.Topic(), string(m.Payload()))
-	}
-
-	//		if (protocol.isRequest(msg)) {
-	//			let resp = protocol.composeResponse(msg, err, res);
-	//			if (resp) {
-	//				self.doSend('monitor', resp);
-	//			}
-	//		}
-	//		else {
-	//			// notify should not have a callback
-	//			logger.error('notify should not have a callback.');
-	//		}
-	//	});
-	//}
-	//
-
-	//if monit.ReqID == 0 && resp != nil {
-	//	fmt.Println("no need resp to master")
-	//	return
-	//}
-	if resp == nil {
-		fmt.Println("empty resp ")
-		return
-	}
-
-	mqttClient.Publish("monitor", 0, false, resp)
-
+		//
+	*/
 }
 
-func handleListSignal(monit Monitor) []byte {
-	monitInf := MonitListInfo{
-		ServerID: *cfg.ServerID,
-		Body: MonitListInfoBody{
-			ServerID:   *cfg.ServerID,
-			ServerType: *cfg.ServerType,
-			Pid:        cfg.Pid,
-			Uptime:     cfg.Uptime(),
-		},
-	}
+/**
+  if (self.state !== ST_REGISTERED) {
+               return;
+           }
 
-	//if proc, er := top.NewProcess(int32(cfg.Pid)); er == nil {
-	//	if memInf, e := proc.MemoryInfo(); e == nil {
-	//		monitInf.Body.RSS = memInf.RSS / (1024 * 1024)
-	//	}
-	//}
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-	monitInf.Body.HeapTotal = memStats.TotalAlloc / (1024 * 1024)
-	monitInf.Body.HeapUsed = memStats.HeapInuse / (1024 * 1024)
+           msg = protocol.parse(msg);
 
-	res := MonitListInfoRes{
-		RespID: monit.ReqID,
-		Error:  monitInf,
-	}
-	if monit.ReqID != 0 {
-		if resp, e := json.Marshal(res); e != nil {
-			fmt.Println(e)
-		} else {
-			return resp
-		}
-	}
+           if (msg.command) {
+               // a command from master
+               self.consoleService.command(msg.command, msg.moduleId, msg.body, function (err, res) {
+                   // notify should not have a callback
+               });
+           } else {
+               let respId = msg.respId;
+               if (respId) {
+                   // a response from monitor
+                   let respCb = self.callbacks[respId];
+                   if (!respCb) {
+                       logger.warn('unknown resp id:' + respId);
+                       return;
+                   }
+                   delete self.callbacks[respId];
+                   respCb(msg.error, msg.body);
+                   return;
+               }
 
-	return nil
-}
+               // request from master
+               self.consoleService.execute(msg.moduleId, 'monitorHandler', msg.body, function (err, res) {
+                   if (protocol.isRequest(msg)) {
+                       let resp = protocol.composeResponse(msg, err, res);
+                       if (resp) {
+                           self.doSend('monitor', resp);
+                       }
+                   } else {
+                       // notify should not have a callback
+                       logger.error('notify should not have a callback.');
+                   }
+               });
+           }
+*/
 
-func reportOnlineUser(serverId string) []byte {
-	res := onlineUserResp{
-		LoginedCount:   len(global.Users),
-		TotalConnCount: len(global.Sids),
-		ServerId:       serverId,
+func DecodeMonitorAllServer(d []byte) MonitorServers {
+	var mm MonitorServers
+	var ss string
+
+	if e := json.Unmarshal(d, &ss); e == nil {
+		d = []byte(ss)
 	}
-	if resp, err := json.Marshal(res); err != nil {
-		fmt.Println(err)
-	} else {
-		return resp
+	if e := json.Unmarshal(d, &mm); e != nil {
+		fmt.Println(mm, e)
 	}
-	return nil
+	return mm
 }

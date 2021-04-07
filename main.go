@@ -18,7 +18,7 @@ func main() {
 	wg.Add(1)
 	fmt.Println("111")
 	go ws_front.StartWsServer(ctx, &wg)
-	go monitor.RegisterServer(ctx, cancelFn, &wg)
+	go monitor.MonitServer(ctx, cancelFn, &wg)
 
 	gracefulshutdown(ctx, cancelFn, &wg, monitor.QuitCtx)
 }

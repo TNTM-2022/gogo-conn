@@ -26,9 +26,9 @@ const RES_OLD_CLIENT = 501;
 // const clientProto = require('../../../../game-server/config/clientProtos');
 // const pushProto = require('../../../../game-server/config/pushProtos');
 
-const decodeIO_decoder = protobufjs.Root.fromJSON(require("/Users/inter/Code/go-connector/tools/target.json"));
+const decodeIO_decoder = protobufjs.Root.fromJSON(require("/Users/inter/Code/go-connector/old/tools/target.json"));
 const decodeIO_encoder = null;//= protobufjs.Root.fromJSON(clientProto);
-const push_decoder = protobufjs.Root.fromJSON(require("/Users/inter/Code/go-connector/tools/target.json"));//= protobufjs.Root.fromJSON(pushProto);
+const push_decoder = protobufjs.Root.fromJSON(require("/Users/inter/Code/go-connector/old/tools/target.json"));//= protobufjs.Root.fromJSON(pushProto);
 
 let _uuid = 1000;
 function create() {
