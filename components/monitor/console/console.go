@@ -6,10 +6,23 @@ import (
 	"fmt"
 	cfg "gogo-connector/components/config"
 	"gogo-connector/components/global"
-	"gogo-connector/components/monitor/types"
 	"log"
 	"runtime"
 )
+
+type MonitListInfoBody struct {
+	ServerID   string  `json:"serverId"`
+	ServerType string  `json:"serverType"`
+	Pid        int     `json:"pid"`
+	RSS        uint64  `json:"rss"`
+	HeapTotal  uint64  `json:"heapTotal"`
+	HeapUsed   uint64  `json:"heapUsed"`
+	Uptime     float64 `json:"uptime"`
+}
+type MonitListInfo struct {
+	ServerID string            `json:"serverId"`
+	Body     MonitListInfoBody `json:"body"`
+}
 
 func MonitorHandler(signal string, quitFn context.CancelFunc, blackList []string) (req, respBody, respErr, notify []byte) {
 	switch signal {
@@ -36,9 +49,9 @@ func stop(quitFn context.CancelFunc) {
 }
 
 func list() []byte {
-	monitInf := types.MonitListInfo{
+	monitInf := MonitListInfo{
 		ServerID: *cfg.ServerID,
-		Body: types.MonitListInfoBody{
+		Body: MonitListInfoBody{
 			ServerID:   *cfg.ServerID,
 			ServerType: *cfg.ServerType,
 			Pid:        cfg.Pid,
