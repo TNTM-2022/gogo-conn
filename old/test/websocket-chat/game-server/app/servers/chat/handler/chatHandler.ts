@@ -10,6 +10,13 @@ export class ChatHandler {
     constructor(private app: Application) {
     }
 
+    async test(msg, session) {
+        return {
+            code: 200,
+            name: 'test',
+            age: 10
+        };
+    }
     /**
      * Send messages to users
      *

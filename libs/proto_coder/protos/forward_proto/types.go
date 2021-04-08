@@ -1,13 +1,16 @@
 package forward_proto
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"gogo-connector/components/global"
+)
 
 type Settings struct {
-	RoomId int32   `json:"roomId,omitempty"`
-	GameId int32   `json:"gameId,omitempty"`
-	Pos    int32   `json:"pos,omitempty"`
-	DeskId float64 `json:"deskId,omitempty"`
-	UID    int32   `json:"uid,omitempty"`
+	RoomId int32         `json:"roomId,omitempty"`
+	GameId int32         `json:"gameId,omitempty"`
+	Pos    int32         `json:"pos,omitempty"`
+	DeskId float64       `json:"deskId,omitempty"`
+	UID    global.UserID `json:"uid,omitempty"`
 
 	Role        int32  `json:"role,omitempty"`
 	ChannelCode string `json:"channelCode,omitempty"`
@@ -25,7 +28,7 @@ type PayloadMsgArgs struct {
 	Route      string          `json:"route,omitempty"`
 	Body       json.RawMessage `json:"body,omitempty"`
 	FrontendId string          `json:"frontendId,omitempty"`
-	Uid        int32           `json:"uid,omitempty"`
+	Uid        global.UserID   `json:"uid,omitempty"`
 	Settings   *Settings       `json:"settings,omitempty"`
 	IsBf       bool            `json:"isBf,omitempty"`
 }

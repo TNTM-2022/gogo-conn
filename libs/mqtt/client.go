@@ -37,6 +37,8 @@ type MQTT struct {
 	reqId       int64
 	reqIdLocker sync.Mutex
 	callbacks   cmap.ConcurrentMap
+
+	connectedNum int
 }
 
 func (m *MQTT) GetReqId() int64 {
@@ -60,24 +62,29 @@ func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
 	}
 
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%v", client.Host, client.Port))
-
+	opts.SetConnectTimeout(time.Second * 5)
 	opts.SetClientID(client.ClientID)
 	opts.SetCleanSession(!client.Persistent)
 	opts.SetOrderMatters(client.Order)
 	opts.SetKeepAlive(time.Duration(client.KeepAliveSec) * time.Second)
 	opts.SetPingTimeout(time.Duration(client.PingTimeoutSec) * time.Second)
 	opts.SetAutoReconnect(true)
-	opts.SetConnectionLostHandler(client.connectionLostHandler)
+	opts.SetMaxReconnectInterval(time.Second * 2)
+	//opts.SetConnectionLostHandler(client.connectionLostHandler)
 	//opts.SetDefaultPublishHandler(client.OnPublishCb)
 	opts.SetDefaultPublishHandler(client.publishHandler)
 	opts.SetOnConnectHandler(client.connectHandler)
+	opts.SetReconnectingHandler(client.reconnectHandler)
 	return opts, nil
 }
 
+func (m *MQTT) reconnectHandler(_ paho.Client, _ *paho.ClientOptions) {
+	fmt.Println("reconnecting to master server ....")
+}
 func (m *MQTT) connectionLostHandler(_ paho.Client, err error) {
 	log.Printf("MQTT client lost connection: %v", err)
 	m.disconnected = true
-	m.retryConnect()
+	//m.retryConnect()
 }
 
 func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
@@ -104,54 +111,36 @@ func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
 					return
 				}
 
+			} else {
+				log.Println("unknown respId =", respId)
 			}
 		}
 
 	}
-	m.OnPublishCb(m, msg)
+	if m.OnPublishCb != nil {
+		go m.OnPublishCb(m, msg)
+	}
 }
-func (m *MQTT) connectHandler(c paho.Client) {
-	log.Printf("MQTT client connected")
-	hasSession := m.connectToken.SessionPresent()
-	log.Printf("MQTT Session present: %v", hasSession)
 
+func (m *MQTT) IsReconnect() bool {
+	return m.connectedNum > 1
+}
+func (m *MQTT) IsConnected() bool {
+	return m.client.IsConnected()
+}
+func (m *MQTT) connectHandler(_ paho.Client) {
+	log.Printf("MQTT client connected")
+	//hasSession := m.connectToken.SessionPresent()
+	//log.Printf("MQTT Session present: %v", hasSession)
+	m.connectedNum++
 	// on first connect, connection lost and persistance is off or no previous session found
 	//if !m.disconnected || (m.disconnected && !m.persistent) || !hasSession {
 	//	m.subscribe()
 	//}
-	m.OnConnectCb(m)
-	m.disconnected = false
-}
-
-func (m *MQTT) connect() {
-	m.connectToken = m.client.Connect().(*paho.ConnectToken)
-	// todo 看看后期咋么修改
-	// todo pomelo bug  如果不修改connect事件返回， 这里将会一直堵着 game-server/node_modules/pinus-rpc/dist/lib/rpc-server/acceptors/mqtt-acceptor.js 中的这个  socket.on('connect', function (pkg) { 代码块内部
-	//if !m.connectToken.WaitTimeout(time.Second * 5) {
-	//	log.Println("mqtt monitor timeout", m.Host, m.Port)
-	//	return
-	//}
-	if m.connectToken.Error() != nil {
-		if !m.connecting {
-			log.Fatalf("MQTT client %s", m.connectToken.Error())
-			m.retryConnect()
-		}
+	if m.OnConnectCb != nil {
+		go m.OnConnectCb(m)
 	}
-}
-
-func (m *MQTT) retryConnect() {
-	log.Printf("MQTT client starting reconnect procedure in background")
-	m.connecting = true
-	ticker := time.NewTicker(time.Second * 5)
-	go func() {
-		for range ticker.C {
-			m.connect()
-			if m.client.IsConnected() {
-				ticker.Stop()
-				m.connecting = false
-			}
-		}
-	}()
+	m.disconnected = false
 }
 
 //func (m *MQTT) subscribe() {
@@ -170,35 +159,6 @@ func (m *MQTT) retryConnect() {
 //	//}
 //}
 
-/**
-  request(moduleId: string, msg: any, cb: Callback) {
-      if (this.state !== ST_REGISTERED) {
-          logger.error('agent can not request now, state:' + this.state);
-          return;
-      }
-      let reqId = this.reqId++;
-      this.callbacks[reqId] = cb;
-      this.doSend('monitor', protocol.composeRequest(reqId, moduleId, msg));
-      // this.socket.emit('monitor', protocol.composeRequest(reqId, moduleId, msg));
-  }
-
-*/
-/**
-  if (id) {
-      // request message
-      return JSON.stringify({
-          reqId: id,
-          moduleId: moduleId,
-          body: body
-      });
-  } else {
-      // notify message
-      return {
-          moduleId: moduleId,
-          body: body
-      };
-  }
-*/
 func (m *MQTT) Request(topic, moduleId string, msg []byte, cb CallBack) {
 	reqId := m.GetReqId()
 	m.callbacks.Set(fmt.Sprintf("%v", reqId), cb)
@@ -218,11 +178,11 @@ func (m *MQTT) Response(topic string, reqId int64, err, data []byte) {
 }
 
 func (m *MQTT) Publish(topic string, message []byte, qos byte, _async bool) {
-	//func (m *MQTT) Publish(topic string, message []byte, qos byte) {
 	token := m.client.Publish(topic, qos, false, message)
-	if _async {
-		//go token.Wait()
-	} else {
+	if token.Error() != nil {
+		fmt.Println("publish error ", token.Error(), m.client.IsConnected())
+	}
+	if !_async {
 		token.Wait()
 	}
 }
@@ -233,21 +193,28 @@ func (m *MQTT) Stop() {
 
 func (m *MQTT) Start() {
 	log.Printf("Starting MQTT client on tcp://%s:%v with Prefix:%v, Persistence:%v, OrderMatters:%v, KeepAlive:%v, PingTimeout:%v, QOS:%v", m.Host, m.Port, "", true, m.Order, m.KeepAliveSec, m.PingTimeoutSec, 1)
-	m.connect()
+	t := m.client.Connect()
+	t.Wait() //Timeout(time.Second * 2) // pinus 问题， 没有 connack确认。 game-server/node_modules/pinus-rpc/dist/lib/rpc-server/acceptors/mqtt-acceptor.js 44L。 client.connack({ returnCode: 0 });
+	fmt.Println("error ", t.Error())
+	if t.Error() != nil {
+		log.Println("mqtt monitor timeout", m.Host, m.Port)
+		log.Panic("cannot connect to master server")
+	}
+	fmt.Println("mqtt started??")
+	//m.connectToken = m.client.Connect().(*paho.ConnectToken)
+	//if m.connectToken.Error() != nil {
+	//	log.Println("mqtt monitor timeout", m.Host, m.Port)
+	//	log.Panic("cannot connect to master server")
+	//}
+}
+
+type L interface {
+	Println(v ...interface{})
+	Printf(format string, v ...interface{})
 }
 
 // CreateMQTTClient creates a new MQTT client
 func CreateMQTTClient(mqttClient *MQTT) *MQTT {
-	//mqttClient := &MQTT{
-	//	host:            "127.0.0.1",
-	//	port:            "3005",
-	//	clientID:        "clientId-1",
-	//	subscriptionQos: 1,
-	//	persistent:      true,
-	//	order:           false,
-	//	keepAliveSec:    5,
-	//	pingTimeoutSec:  10,
-	//}
 	mqttClient.callbacks = cmap.New()
 
 	opts, err := initMQTTClientOps(mqttClient)

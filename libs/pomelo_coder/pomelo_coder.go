@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
+	"gogo-connector/components/global"
+	"strings"
 )
 
 // user conn 状态
@@ -25,36 +27,13 @@ const (
 
 //===================== handle pomelo protocol ===========================
 
-func PackageTypeHandler(t byte, b []byte, user *UserConn) {
-	switch int(t) {
-	case Package["TYPE_HANDSHAKE"]:
-		handleHandshake(user)
-
-	case Package["TYPE_HANDSHAKE_ACK"]:
-		handleHandshakeAck(user)
-
-	case Package["TYPE_HEARTBEAT"]:
-		fmt.Println("TYPE_HEARTBEAT")
-
-	case Package["TYPE_DATA"]:
-		fmt.Println("TYPE_DATA")
-		handleData(user, b)
-
-	case Package["TYPE_KICK"]:
-		fmt.Println("TYPE_KICK")
-
-	default:
-	}
-	return
-}
-
 // 处理客户端handshake
 // 检查整体状态 ST_INITED
 // todo checkClient
 // var opts = { heartbeat : setupHeartbeat(this) };
 //  opts.useProto = true;
 // 返回 TYPE_HANDSHAKE 报文， 携带上述的对象 packageEncode
-func handleHandshake(user *UserConn) {
+func HandleHandshake(user *UserConn) {
 	if user.State != StateInited {
 		user.Cancel()
 		return
@@ -79,7 +58,7 @@ func handleHandshake(user *UserConn) {
 }
 
 //
-func handleHandshakeAck(user *UserConn) {
+func HandleHandshakeAck(user *UserConn) {
 	if user.State != StateWaitAck {
 		user.Cancel()
 		return
@@ -92,7 +71,7 @@ func genDictVersion() string {
 	return base64.StdEncoding.EncodeToString(m[:])
 }
 
-func handleData(user *UserConn, b []byte) {
+func HandleData(user *UserConn, b []byte) (userreq global.UserReq) {
 	if user.State != StateWorking {
 		user.Cancel()
 		return
@@ -100,41 +79,39 @@ func handleData(user *UserConn, b []byte) {
 
 	c := MessageDecode(b)
 	fmt.Println(c.Route, string(c.Body))
-	//server := strings.SplitN(c.Route, ".", 2)[0]
-	//fmt.Println("servertype", server, "server.len", len(servers.ServerTypeMap[server]))
-	//if server != "" {
-	//	servers.ServerOptLocker.RLock()
-	//	ch := servers.ServerTypeChMap[server]
-	//	servers.ServerOptLocker.RUnlock()
-	//	if ch != nil {
-	//		fmt.Println("将要写入消息", server)
-	//		//ch <- userReqType.UserReq{
-	//		//	UID:        user.UID,
-	//		//	Route:      c.Route,
-	//		//	ServerType: server,
-	//		//	Payload:    c.Body,
-	//		//	PkgID:      c.ID,
-	//		//	Sid:        user.Sid,
-	//		//}
-	//		m := interfaces.UserReq{
-	//			UID:        user.UID,
-	//			Route:      c.Route,
-	//			ServerType: server,
-	//			Payload:    c.Body,
-	//			PkgID:      c.ID,
-	//			Sid:        user.Sid,
-	//		}
-	//		select {
-	//		case ch <- m:
-	//		default:
-	//			{
-	//				fmt.Println("写入失败，队列堵塞", server)
-	//			}
-	//		}
-	//		fmt.Println("将要写入消息 done")
-	//
-	//	}
-	//}
+	serverType := strings.SplitN(c.Route, ".", 2)[0]
+	sss, ok1 := global.RemoteTypeStore.Get(serverType)
+	ssss, ok2 := sss.(*global.RemoteTypeStoreType)
+	fmt.Println("serverType:", serverType, "server.len:", len(ssss.Servers), ok1, ok2)
+
+	if serverType == "" {
+		return
+	}
+
+	userreq = global.UserReq{
+		UID:        user.UID,
+		Route:      c.Route,
+		ServerType: serverType,
+		Payload:    c.Body,
+		PkgID:      c.ID,
+		Sid:        user.Sid,
+	}
+
+	if ssss.ForwardCh == nil {
+		return
+	}
+
+	fmt.Println("将要写入消息", serverType)
+
+	select {
+	case ssss.ForwardCh <- userreq:
+	default:
+		{
+			fmt.Println("写入失败，队列堵塞", serverType)
+		}
+	}
+
+	return
 }
 
 type KickMsg struct {

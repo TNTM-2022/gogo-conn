@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gogo-connector/components/global"
-	coder "gogo-connector/libs/pomelo_coder"
+	pomelo_coder "gogo-connector/libs/pomelo_coder"
 	"log"
 	"net"
 	"reflect"
@@ -54,6 +54,7 @@ func StartWsServer(ctx context.Context, wg *sync.WaitGroup) {
 	}()
 	go func() {
 		for { // interval report
+			return
 			time.Sleep(time.Duration(time.Second * 5))
 			fmt.Printf("users: %d, sids: %d, goroutine: %d\n", global.Users.Count(), global.Sids.Count(), runtime.NumGoroutine())
 		}
@@ -83,7 +84,7 @@ func ws(c echo.Context) error {
 	}
 	defer global.BackSid(sid)
 
-	user := CreateUserConn(uid, sid, ctx, cancel, coder.StateInited)
+	user := CreateUserConn(uid, sid, ctx, cancel, pomelo_coder.StateInited)
 	global.Users.Set(strconv.FormatUint(uint64(uid), 10), &user)
 	global.Sids.Set(strconv.FormatUint(uint64(sid), 10), uid)
 	defer func() {
@@ -113,9 +114,9 @@ func ws(c echo.Context) error {
 				return
 			}
 			if websocket.BinaryMessage == messageType && p != nil {
-				m := coder.PackageDecode(p)
+				m := pomelo_coder.PackageDecode(p)
 				for _, mm := range m {
-					coder.PackageTypeHandler(mm.Type, mm.Body, user)
+					packageTypeHandler(mm.Type, mm.Body, user)
 				}
 			}
 		}
@@ -175,8 +176,8 @@ func judgeWsConnError(err error) {
 		return
 	}
 }
-func CreateUserConn(uid global.UserID, sid global.SessionID, ctx context.Context, cancel context.CancelFunc, state int) *coder.UserConn {
-	return &coder.UserConn{
+func CreateUserConn(uid global.UserID, sid global.SessionID, ctx context.Context, cancel context.CancelFunc, state int) *pomelo_coder.UserConn {
+	return &pomelo_coder.UserConn{
 		//MsgReq:  make(chan []byte, 1000),
 		MsgResp: make(chan []byte, 1000),
 		MsgPush: make(chan []byte, 1000),
@@ -192,9 +193,32 @@ func CreateUserConn(uid global.UserID, sid global.SessionID, ctx context.Context
 	}
 }
 
+func packageTypeHandler(t byte, b []byte, user *pomelo_coder.UserConn) {
+	switch int(t) {
+	case pomelo_coder.Package["TYPE_HANDSHAKE"]:
+		pomelo_coder.HandleHandshake(user)
+
+	case pomelo_coder.Package["TYPE_HANDSHAKE_ACK"]:
+		pomelo_coder.HandleHandshakeAck(user)
+
+	case pomelo_coder.Package["TYPE_HEARTBEAT"]:
+		fmt.Println("TYPE_HEARTBEAT")
+
+	case pomelo_coder.Package["TYPE_DATA"]:
+		fmt.Println("TYPE_DATA")
+		pomelo_coder.HandleData(user, b)
+
+	case pomelo_coder.Package["TYPE_KICK"]:
+		fmt.Println("TYPE_KICK")
+
+	default:
+	}
+	return
+}
+
 // 推送消息 全局只需要一个/负载几个
 // 客户端发送消息 全局也只需要几个
 // 客户端接收消息 全局只需要几个
 
-// m := coder.MessageEncode(0, coder.Message["TYPE_PUSH"], 0, "_test.testHandler.test", []byte("ok"), false)
-// p := coder.PackageEncode(coder.Package["TYPE_DATA"], m)
+// m := pomelo_coder.MessageEncode(0, pomelo_coder.Message["TYPE_PUSH"], 0, "_test.testHandler.test", []byte("ok"), false)
+// p := pomelo_coder.PackageEncode(pomelo_coder.Package["TYPE_DATA"], m)

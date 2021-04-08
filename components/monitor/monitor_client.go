@@ -28,15 +28,15 @@ type Register struct {
 	Token      string             `json:"token"`
 }
 
-type SubscribeBody struct {
-	Action   string `json:"action"`
-	ServerID string `json:"id"`
-}
-type Subscribe struct {
-	ReqID    int64         `json:"reqId"`
-	ModuleID string        `json:"moduleId"`
-	Body     SubscribeBody `json:"body"`
-}
+//type SubscribeBody struct {
+//	Action   string `json:"action"`
+//	ServerID string `json:"id"`
+//}
+//type Subscribe struct {
+//	ReqID    int64         `json:"reqId"`
+//	ModuleID string        `json:"moduleId"`
+//	Body     SubscribeBody `json:"body"`
+//}
 
 type RegisterResp struct {
 	Code int32  `json:"code"`
@@ -93,7 +93,6 @@ func MonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.Wait
 }
 
 func regServerCb(mqttClient *mqtt.MQTT) {
-	// 注册server， 携带 token
 	m, _ := os.Getwd()
 	regInfo := Register{
 		ServerID:   *cfg.ServerID,
@@ -115,11 +114,26 @@ func regServerCb(mqttClient *mqtt.MQTT) {
 		},
 		Token: "ok",
 	}
-	regStr, _ := json.Marshal(regInfo)
+	switch mqttClient.IsReconnect() {
+	case true:
+		regInfo.Token = ""
+		regStr, _ := json.Marshal(regInfo)
+		reconnectCb(mqttClient, regStr)
+	case false:
+		regStr, _ := json.Marshal(regInfo)
+		firstConnectCb(mqttClient, regStr)
+	}
+}
+
+func firstConnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
+	// 注册server， 携带 token
 	mqttClient.Publish("register", regStr, 0, false) // 直接发送 lib/monitor/monitorAgent line 151
 	log.Println("monitor registed")
 
-	subServer := SubscribeBody{
+	subServer := struct {
+		Action   string `json:"action"`
+		ServerID string `json:"id"`
+	}{
 		Action:   "subscribe",
 		ServerID: *cfg.ServerID,
 	}
@@ -141,7 +155,11 @@ func regServerCb(mqttClient *mqtt.MQTT) {
 
 	log.Println("+++ monitor start monitor")
 }
+func reconnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
+	mqttClient.Publish("reconnect", regStr, 0, false) // 直接发送 lib/monitor/monitorAgent line 151
+	log.Println("monitor registed")
 
+}
 func publishCb(mqttClient *mqtt.MQTT, m paho.Message) {
 	fmt.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
 	switch m.Topic() {
@@ -153,24 +171,16 @@ func publishCb(mqttClient *mqtt.MQTT, m paho.Message) {
 		{
 			fmt.Println("connect")
 		}
+	case "reconnect_ok":
+		{
+			fmt.Println("reconnected")
+		}
 	default:
 		{
 			fmt.Println("unhandled Topic++++", m.Topic(), string(m.Payload()))
 		}
 	}
 
-}
-
-func DecodeMonitor(d []byte) types.Monitor {
-	var mm types.Monitor
-	var ss string
-	if e := json.Unmarshal(d, &ss); e == nil {
-		d = []byte(ss)
-	}
-	if e := json.Unmarshal(d, &mm); e != nil {
-		fmt.Println(mm, e)
-	}
-	return mm
 }
 
 // =================================
@@ -380,6 +390,18 @@ func DecodeMonitorAllServer(d []byte) MonitorServers {
 	var mm MonitorServers
 	var ss string
 
+	if e := json.Unmarshal(d, &ss); e == nil {
+		d = []byte(ss)
+	}
+	if e := json.Unmarshal(d, &mm); e != nil {
+		fmt.Println(mm, e)
+	}
+	return mm
+}
+
+func DecodeMonitor(d []byte) types.Monitor {
+	var mm types.Monitor
+	var ss string
 	if e := json.Unmarshal(d, &ss); e == nil {
 		d = []byte(ss)
 	}

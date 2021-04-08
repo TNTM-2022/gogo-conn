@@ -91,7 +91,7 @@ function create() {
         var onmessage = function (event) {
             console.log("event.data", event.data)
             const a = processPackage(Package.decode(event.data), cb);
-            console.log("event.data", Package.decode(event.data).body.toString())
+            console.log("event.data", Package.decode(event.data)?.body?.toString())
             // new package arrived, update the heartbeat timeout
             if (heartbeatTimeout) {
                 nextHeartbeatTimeout = Date.now() + heartbeatTimeout;
