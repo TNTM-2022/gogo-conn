@@ -24,7 +24,7 @@ type sysInfoRespBody struct {
 	Cpus              int               `json:"cpus"`
 	NetworkInterfaces string            `json:"networkInterfaces"`
 	Versions          map[string]string `json:"versions"`
-	IOStat            map[string]string `json:"iostat"`
+	IOStat            json.RawMessage `json:"iostat"`
 }
 type sysInfoResp struct {
 	ServerId string          `json:"serverId"`
@@ -51,7 +51,7 @@ func MointorHandler() (req, respBody, respErr, notify []byte) {
 			Freemem:           m.Free,
 			Cpus:              runtime.NumCPU(),
 			NetworkInterfaces: "",
-			IOStat:            make(map[string]string),
+			IOStat:            json.RawMessage(`{"date":"","disk":{"kb_read":0,"kb_wrtn":0,"kb_read_per":0,"kb_wrtn_per":0,"tps":0},"cpu":{"cpu_user":0,"cpu_nice":0,"cpu_system":0,"cpu_iowait":0,"cpu_steal":0,"cpu_idle":0}}`),
 		},
 	})
 	if e != nil {

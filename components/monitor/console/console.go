@@ -44,6 +44,7 @@ func MonitorHandler(signal string, quitFn context.CancelFunc, blackList []string
 	}
 	return
 }
+
 func stop(quitFn context.CancelFunc) {
 	quitFn()
 }
@@ -61,7 +62,7 @@ func list() []byte {
 
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	monitInf.Body.HeapTotal = memStats.HeapSys / (1024 * 1024)
+	monitInf.Body.HeapTotal = (memStats.HeapIdle + memStats.HeapInuse) / (1024 * 1024)
 	monitInf.Body.HeapUsed = memStats.HeapInuse / (1024 * 1024)
 	monitInf.Body.RSS = memStats.StackSys / (1024 * 1024)
 

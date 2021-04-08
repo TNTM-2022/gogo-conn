@@ -213,6 +213,7 @@ func (m *MQTT) Notify(topic, moduleId string, msg []byte) {
 
 func (m *MQTT) Response(topic string, reqId int64, err, data []byte) {
 	rr := ComposeResponse(reqId, err, data)
+
 	m.Publish(topic, rr, 0, true)
 }
 
