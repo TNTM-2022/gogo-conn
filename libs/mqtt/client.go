@@ -78,8 +78,8 @@ func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
 	return opts, nil
 }
 
-func (m *MQTT) reconnectHandler(_ paho.Client, _ *paho.ClientOptions) {
-	fmt.Println("reconnecting to master server ....")
+func (m *MQTT) reconnectHandler(_ paho.Client, opts *paho.ClientOptions) {
+	fmt.Printf("reconnecting to %v server ....\n", opts.ClientID)
 }
 func (m *MQTT) connectionLostHandler(_ paho.Client, err error) {
 	log.Printf("MQTT client lost connection: %v", err)
@@ -117,6 +117,7 @@ func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
 		}
 
 	}
+	fmt.Println(msg)
 	if m.OnPublishCb != nil {
 		go m.OnPublishCb(m, msg)
 	}
@@ -198,7 +199,7 @@ func (m *MQTT) Start() {
 	fmt.Println("error ", t.Error())
 	if t.Error() != nil {
 		log.Println("mqtt monitor timeout", m.Host, m.Port)
-		log.Panic("cannot connect to master server")
+		log.Panicf("cannot connect to %v server", m.ClientID)
 	}
 	fmt.Println("mqtt started??")
 	//m.connectToken = m.client.Connect().(*paho.ConnectToken)

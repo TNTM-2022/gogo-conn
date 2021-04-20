@@ -3,9 +3,11 @@ package mointor_watcher
 import (
 	"encoding/json"
 	"fmt"
+	paho "github.com/eclipse/paho.mqtt.golang"
 	config "gogo-connector/components/config"
 	"gogo-connector/components/global"
 	"gogo-connector/components/monitor/types"
+	"gogo-connector/libs/mqtt"
 	"gogo-connector/libs/package_coder"
 	"gogo-connector/libs/proto_coder"
 	"log"
@@ -56,13 +58,25 @@ func AddServers(ss []types.RegisterInfo) {
 			continue
 		}
 
+		fmt.Println(s)
 		client := &RemoteConnect{
 			Host:       s.Host,
-			Port:       s.Port,
+			Port:       int32(s.Port),
 			ServerID:   s.ServerID,
 			ServerType: s.ServerType,
 		}
-		if err := client.Connect(s.Host, fmt.Sprintf("%v", s.Port), s.ServerID); err != nil {
+		if func() bool {
+			serverOptLocker.Lock()
+			defer serverOptLocker.Unlock()
+
+			if _, ok := global.RemoteStore.Get(s.ServerID); ok {
+				return true
+			}
+			return false
+		}() {
+			continue
+		}
+		if err := client.Start(nil, handlePublish); err != nil {
 			fmt.Println(err)
 		}
 		log.Println("链接服务器", s.ServerID, s.ServerType, s.ServerID, s.Host, s.Port, client.MqttClient.IsConnected())
@@ -104,12 +118,15 @@ func AddServers(ss []types.RegisterInfo) {
 					continue
 				}
 				client.MqttClient.Publish("rpc", p, 0, true)
-				fmt.Println("rpc send ok")
+				fmt.Println("rpc send ok", client.MqttClient.ClientID)
 			}
 		}(s, client)
-
 	}
 
 	time.Sleep(time.Second * 100)
 	//return nil
+}
+
+func handlePublish(mqtt *mqtt.MQTT, msg paho.Message) {
+	package_coder.Decode(msg)
 }

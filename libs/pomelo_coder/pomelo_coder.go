@@ -80,13 +80,20 @@ func HandleData(user *UserConn, b []byte) (userreq global.UserReq) {
 	c := MessageDecode(b)
 	fmt.Println(c.Route, string(c.Body))
 	serverType := strings.SplitN(c.Route, ".", 2)[0]
-	sss, ok1 := global.RemoteTypeStore.Get(serverType)
-	ssss, ok2 := sss.(*global.RemoteTypeStoreType)
-	fmt.Println("serverType:", serverType, "server.len:", len(ssss.Servers), ok1, ok2)
-
 	if serverType == "" {
 		return
 	}
+	sss, ok1 := global.RemoteTypeStore.Get(serverType)
+	if !ok1 {
+		fmt.Println("no found server>>", serverType)
+		return
+	}
+	ssss, ok2 := sss.(*global.RemoteTypeStoreType)
+	if !ok2 {
+		fmt.Println("parse server>>", serverType)
+		return
+	}
+	fmt.Println("serverType:", serverType, "server.len:", len(ssss.Servers), ok1, ok2)
 
 	userreq = global.UserReq{
 		UID:        user.UID,

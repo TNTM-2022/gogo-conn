@@ -1,19 +1,11 @@
 {
   "development": {
-    "connector": [
+
+    "gate": [
       {
-        "id": "connector-server-1",
+        "id": "gate-server-1",
         "host": "127.0.0.1",
-        "port": 4050,
-        "clientPort": 3050,
-        "frontend": true
-      }
-    ],
-    "chat": [
-      {
-        "id": "chat-server-1",
-        "host": "127.0.0.1",
-        "port": 6050
+        "port": 6520
       }
 
     ]

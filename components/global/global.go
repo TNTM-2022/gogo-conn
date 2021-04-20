@@ -2,6 +2,7 @@ package global
 
 import (
 	"fmt"
+	paho "github.com/eclipse/paho.mqtt.golang"
 	concurrentMap "github.com/orcaman/concurrent-map"
 	"gogo-connector/libs/mqtt"
 	"log"
@@ -99,19 +100,25 @@ type RemoteConnect struct {
 	MqttClient *mqtt.MQTT
 }
 
-func (conn *RemoteConnect) Connect(host, port string, serverId string) error {
-	log.Println("mqtt client connect to ", host, port, serverId)
+func (conn *RemoteConnect) AddPublishCb(f func(*mqtt.MQTT, paho.Message)) {
+	conn.MqttClient.OnPublishCb = f
+}
+func (conn *RemoteConnect) Start(connCb func(mqtt *mqtt.MQTT), publishCb func(*mqtt.MQTT, paho.Message)) error {
+	log.Println("mqtt client connect to ", conn.Host, conn.Port, conn.ServerID)
 
 	// todo pomelo bug  如果不修改connect事件返回， 这里将会一直堵着 game-server/node_modules/pinus-rpc/dist/lib/rpc-server/acceptors/mqtt-acceptor.js 中的这个  socket.on('connect', function (pkg) { 代码块内部
 	mqttClient := mqtt.CreateMQTTClient(&mqtt.MQTT{
-		Host:            "127.0.0.1",
-		Port:            "6050",
-		ClientID:        "dfgdfg",
-		SubscriptionQos: 1, // 1
+		Host:            conn.Host,                    // "127.0.0.1",
+		Port:            fmt.Sprintf("%v", conn.Port), //"6050",
+		ClientID:        conn.ServerID,                //"dfgdfg",
+		SubscriptionQos: 1,                            // 1
 		Persistent:      false,
 		Order:           false,
 		KeepAliveSec:    5,
 		PingTimeoutSec:  10,
+
+		OnConnectCb: connCb,
+		OnPublishCb: publishCb,
 	})
 
 	conn.MqttClient = mqttClient

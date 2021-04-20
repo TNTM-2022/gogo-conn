@@ -9,7 +9,6 @@ class ChatHandler {
         this.app = app;
     }
     async test(msg, session) {
-        console.log("678789798798798798798$%^&*^%$%^&*(")
         return {
             code: 200,
             name: 'test',

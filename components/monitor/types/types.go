@@ -10,8 +10,8 @@ type RegisterInfo struct {
 	Env        string `json:"env"`
 	ServerID   string `json:"id"`
 	Host       string `json:"host"`
-	Port       int32  `json:"port"`
-	ClientPort int32  `json:"clientPort"`
+	Port       int    `json:"port"`
+	ClientPort int    `json:"clientPort"`
 	Frontend   string `json:"frontend"`
 	ServerType string `json:"serverType"`
 	Token      string `json:"token"`

@@ -6,6 +6,7 @@ import (
 	cmap "github.com/orcaman/concurrent-map"
 	"gogo-connector/components/config"
 	cfg "gogo-connector/components/config"
+	"gogo-connector/components/global"
 	"gogo-connector/components/monitor/types"
 	mqtt "gogo-connector/libs/mqtt"
 	"gogo-connector/libs/proto_coder"
@@ -228,11 +229,11 @@ func (conn *RemoteConnect) encode(userReq *UserReq) []byte {
 				&sendProto.PayloadMsgArgs{
 					Id:         int64(userReq.Sid), // sid
 					FrontendId: *config.ServerID,
-					Uid:        userReq.UID,
+					Uid:        global.UserID(userReq.UID),
 					Settings: &sendProto.Settings{
 						GameId: 123,
 						RoomId: 41,
-						UID:    userReq.UID,
+						UID:    global.UserID(userReq.UID),
 						DeskId: 10000000010041,
 					},
 				},

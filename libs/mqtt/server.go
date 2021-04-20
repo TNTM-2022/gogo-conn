@@ -87,7 +87,7 @@ func (s *Server) registPublish(f interface{}) {
 		for {
 			select {
 			case m := <-s.publishMessages:
-				// fmt.Println("server", m)
+				fmt.Println("server", m)
 				v(m.([]byte))
 			}
 		}
@@ -118,6 +118,7 @@ func (s *Server) New(addr string) error {
 				fmt.Print(err)
 				// handle error
 			}
+			fmt.Println("~~~~~~~~~~~~~~~~~~~", conn.RemoteAddr())
 			go s.handleConnection(conn)
 		}
 	}()

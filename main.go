@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"gogo-connector/components/monitor"
+	"gogo-connector/components/mqtt/mqtt_server"
 	"gogo-connector/components/ws_front"
 	"log"
 	"os"
@@ -15,11 +16,11 @@ func main() {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
-	wg.Add(1)
+	wg.Add(3)
 	fmt.Println("111")
 	go ws_front.StartWsServer(ctx, &wg)
 	go monitor.MonitServer(ctx, cancelFn, &wg)
-
+	go mqtt_server.StartMqttServer(ctx, cancelFn, &wg)
 	gracefulshutdown(ctx, cancelFn, &wg, monitor.QuitCtx)
 }
 

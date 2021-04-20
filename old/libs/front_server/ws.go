@@ -70,7 +70,7 @@ func StartWsServer(mc interfaces.MainControl, l net.Listener) {
 			e.Logger.Error(err)
 		}
 	}()
-	go func () {
+	go func() {
 		for {
 			time.Sleep(time.Duration(time.Second * 5))
 			fmt.Printf("users: %d, sids: %d, goroutine: %d\n", global.Users.Count(), global.Sids.Count(), runtime.NumGoroutine())
@@ -80,6 +80,7 @@ func StartWsServer(mc interfaces.MainControl, l net.Listener) {
 }
 
 var upgrader = websocket.Upgrader{}
+
 func ws(c echo.Context) error {
 	//strToken := c.Request().Header.Get("Sec-Websocket-Protocol")
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
@@ -95,7 +96,7 @@ func ws(c echo.Context) error {
 	//uid = interfaces.Sid(getSid())
 
 	user := interfaces.CreateUserConn(uid, sid, ctx, cancel, StateInited)
-	global.Users.Set(strconv.FormatUint(uint64(uid), 10), &user)
+	global.Users.Set(strconv.FormatUint(uint64(uid), 10), user)
 	global.Sids.Set(strconv.FormatUint(uint64(sid), 10), uid)
 
 	defer func() {

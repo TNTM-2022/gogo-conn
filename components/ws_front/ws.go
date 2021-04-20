@@ -85,7 +85,7 @@ func ws(c echo.Context) error {
 	defer global.BackSid(sid)
 
 	user := CreateUserConn(uid, sid, ctx, cancel, pomelo_coder.StateInited)
-	global.Users.Set(strconv.FormatUint(uint64(uid), 10), &user)
+	global.Users.Set(strconv.FormatUint(uint64(uid), 10), user)
 	global.Sids.Set(strconv.FormatUint(uint64(sid), 10), uid)
 	defer func() {
 		global.Users.Remove(strconv.FormatUint(uint64(uid), 10))
@@ -125,7 +125,7 @@ func ws(c echo.Context) error {
 	go func() {
 		defer func() {
 			cancel()
-			fmt.Println("close --==read==--")
+			fmt.Println("close --==write==--")
 		}()
 		for { // 处理写入
 			select {

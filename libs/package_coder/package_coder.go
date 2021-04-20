@@ -3,9 +3,13 @@ package package_coder
 import (
 	"encoding/json"
 	"fmt"
+	paho "github.com/eclipse/paho.mqtt.golang"
 	concurrentMap "github.com/orcaman/concurrent-map"
 	"gogo-connector/components/global"
+	coder "gogo-connector/libs/pomelo_coder"
+	"gogo-connector/libs/proto_coder"
 	sendProto "gogo-connector/libs/proto_coder/protos/forward_proto"
+	"log"
 	"math"
 	"strconv"
 	"sync"
@@ -87,4 +91,62 @@ func Encode(userReq *UserReq, serverId string) []byte {
 	}
 
 	return nil
+}
+
+type RawResp struct {
+	Id   int64
+	Resp []json.RawMessage
+}
+
+func Decode(m paho.Message) {
+	log.Println("topic", m.Topic(), m.MessageID(), string(m.Payload()))
+
+	var rec RawResp
+	if e := json.Unmarshal(m.Payload(), &rec); e != nil {
+		fmt.Println(e)
+		return
+	}
+
+	//if len(rec.Resp) != 2 {
+	//	fmt.Println("response array len not right", rec.Resp, len(rec.Resp));
+	//	fmt.Println(string(rec.Resp[0]))
+	//	fmt.Println(string(rec.Resp[1]))
+	//	fmt.Println(string(rec.Resp[2]))
+	//	return;
+	//}
+	_pp, ok := pkgMap.Get(strconv.FormatInt(rec.Id, 10))
+	if !ok {
+		fmt.Println("no package info found")
+		return
+	}
+	pp := _pp.(*PkgBelong)
+	//defer delete(pkgMap, rec.Id)
+	defer pkgMap.Remove(strconv.FormatInt(rec.Id, 10))
+	route := pp.Route
+
+	// do compose msg payload
+	var b []byte
+	if len(rec.Resp) == 2 && rec.Resp[1] != nil {
+		b = rec.Resp[1]
+	} else if len(rec.Resp) == 3 && rec.Resp[1] != nil {
+		b = rec.Resp[1]
+	} else {
+		fmt.Println("skip")
+		return
+	}
+	fmt.Println("jsonStr>>>>", string(b))
+	fmt.Println("route>>>>", route)
+	if _b, e := proto_coder.JsonToPb(route, b, false); _b != nil && e == nil {
+		log.Println(" json2bt转换成功-", route)
+		b = _b
+	} else {
+		log.Println(" json2pb转换失败", route)
+	}
+
+	mm := coder.MessageEncode(uint64(pp.ClientPkgID), coder.Message["TYPE_RESPONSE"], 0, pp.Route, b, false)
+	fmt.Println(mm, "--->>>> content: ", string(b))
+	mm = coder.PackageEncode(coder.Package["TYPE_DATA"], mm)
+	if t, ok := global.Users.Get(strconv.FormatInt(int64(pp.UID), 10)); ok {
+		t.(*coder.UserConn).MsgResp <- mm
+	}
 }

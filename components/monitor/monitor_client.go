@@ -79,9 +79,9 @@ func MonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.Wait
 		ClientID:        "clientId-1",
 		SubscriptionQos: 1,
 		Persistent:      true,
-		Order:           false,
-		KeepAliveSec:    5,
-		PingTimeoutSec:  10,
+		Order:           true,
+		KeepAliveSec:    10,
+		PingTimeoutSec:  30,
 
 		OnConnectCb: regServerCb,
 		OnPublishCb: publishCb,
@@ -104,8 +104,8 @@ func regServerCb(mqttClient *mqtt.MQTT) {
 			Env:          *cfg.Env,
 			ServerID:     *cfg.ServerID,
 			Host:         *cfg.MqttServerHost, // mqtt server host
-			Port:         int32(0),            // mqtt server port
-			ClientPort:   int32(0),            // ws server port
+			Port:         cfg.MqttServerPort,  // mqtt server port
+			ClientPort:   cfg.MqttServerPort,  // ws server port
 			Frontend:     "true",
 			ServerType:   "connector",
 			Token:        "ok",
