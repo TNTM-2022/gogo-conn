@@ -11,9 +11,11 @@ import (
 	pomelo_coder "gogo-connector/libs/pomelo_coder"
 	"log"
 	"net"
+	"net/http/pprof"
 	"reflect"
 	"runtime"
 
+	_ "net/http/pprof"
 	"strconv"
 	"sync"
 	"time"
@@ -32,6 +34,27 @@ func StartWsServer(ctx context.Context, wg *sync.WaitGroup) {
 
 	// Routes
 	e.GET("/ws", ws)
+	e.Any("/debug/pprof/", func(ctx echo.Context) error {
+		pprof.Index(ctx.Response().Writer, ctx.Request())
+		return nil
+	})
+	e.Any("/debug/pprof/cmdline", func(ctx echo.Context) error {
+		pprof.Cmdline(ctx.Response().Writer, ctx.Request())
+		return nil
+	})
+	e.Any("/debug/pprof/profile", func(ctx echo.Context) error {
+		pprof.Profile(ctx.Response().Writer, ctx.Request())
+		return nil
+	})
+	e.Any("/debug/pprof/symbol", func(ctx echo.Context) error {
+		pprof.Symbol(ctx.Response().Writer, ctx.Request())
+		return nil
+	})
+
+	e.Any("/debug/pprof/trace", func(ctx echo.Context) error {
+		pprof.Trace(ctx.Response().Writer, ctx.Request())
+		return nil
+	})
 
 	// Start server
 	l, err := net.Listen("tcp", "127.0.0.1:12345")
@@ -64,11 +87,14 @@ func StartWsServer(ctx context.Context, wg *sync.WaitGroup) {
 
 var upgrader = websocket.Upgrader{}
 
+var i int = 0
+
 func ws(c echo.Context) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var uid global.UserID // 校验过程已经获取了
+	i++
+	var uid global.UserID = global.UserID(i) // 校验过程已经获取了
 	// todo 获取头部 进行校验， 如果ok 继续放行。 同时设置倒计时，防止攻击
 	//strToken := c.Request().Header.Get("Sec-Websocket-Protocol")
 	conn, err := upgrader.Upgrade(c.Response(), c.Request(), nil)

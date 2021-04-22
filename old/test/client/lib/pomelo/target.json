@@ -1,0 +1,56 @@
+{
+  "nested": {
+    "user": {
+      "nested": {
+        "entryHandler": {
+          "nested": {
+            "D": {
+              "fields": {
+                "uid": {
+                  "type": "int32",
+                  "id": 1
+                }
+              }
+            },
+            "Data": {
+              "fields": {
+                "user": {
+                  "type": "D",
+                  "id": 2
+                },
+                "msg": {
+                  "type": "string",
+                  "id": 1
+                }
+              }
+            },
+            "entry": {
+              "fields": {
+                "code": {
+                  "type": "int32",
+                  "id": 1
+                },
+                "data": {
+                  "type": "Data",
+                  "id": 2
+                }
+              }
+            }
+          }
+        },
+        "msg": {
+          "nested": {
+            "entry": {
+              "fields": {
+                "a": {
+                  "type": "string",
+                  "id": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

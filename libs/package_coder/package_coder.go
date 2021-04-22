@@ -119,9 +119,9 @@ func Decode(m paho.Message) {
 		fmt.Println("no package info found")
 		return
 	}
+	defer pkgMap.Remove(strconv.FormatInt(rec.Id, 10))
 	pp := _pp.(*PkgBelong)
 	//defer delete(pkgMap, rec.Id)
-	defer pkgMap.Remove(strconv.FormatInt(rec.Id, 10))
 	route := pp.Route
 
 	// do compose msg payload
@@ -147,6 +147,9 @@ func Decode(m paho.Message) {
 	fmt.Println(mm, "--->>>> content: ", string(b))
 	mm = coder.PackageEncode(coder.Package["TYPE_DATA"], mm)
 	if t, ok := global.Users.Get(strconv.FormatInt(int64(pp.UID), 10)); ok {
-		t.(*coder.UserConn).MsgResp <- mm
+		select {
+		case t.(*coder.UserConn).MsgResp <- mm:
+		default:
+		}
 	}
 }

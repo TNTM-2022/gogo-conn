@@ -4,6 +4,7 @@ function default_1(app) {
     return new ChatHandler(app);
 }
 exports.default = default_1;
+let i = 0
 class ChatHandler {
     constructor(app) {
         this.app = app;
@@ -12,7 +13,7 @@ class ChatHandler {
         return {
             code: 200,
             name: 'test',
-            age: 10
+            age: i++
         };
     }
     /**

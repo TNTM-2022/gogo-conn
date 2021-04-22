@@ -26,9 +26,9 @@ const RES_OLD_CLIENT = 501;
 // const clientProto = require('../../../../game-server/config/clientProtos');
 // const pushProto = require('../../../../game-server/config/pushProtos');
 
-const decodeIO_decoder = protobufjs.Root.fromJSON(require("/Users/inter/Code/go-connector/old/tools/target.json"));
+const decodeIO_decoder = protobufjs.Root.fromJSON(require("./target.json"));
 const decodeIO_encoder = null;//= protobufjs.Root.fromJSON(clientProto);
-const push_decoder = protobufjs.Root.fromJSON(require("/Users/inter/Code/go-connector/old/tools/target.json"));//= protobufjs.Root.fromJSON(pushProto);
+const push_decoder = protobufjs.Root.fromJSON(require("./target.json"));//= protobufjs.Root.fromJSON(pushProto);
 
 let _uuid = 1000;
 function create() {
@@ -312,15 +312,16 @@ function create() {
             // server push message
             if (msg.route === 'message') {
                 if (msg.body.event) {
-                    pomelo.emit(`event.${msg.body.event}`, { route: `event.${msg.body.event}`, code: 0, data: msg.body });
-                    pomelo.emit(msg.body.event, { route: `event.${msg.body.event}`, code: 0, data: msg.body });
+                    pomelo.emit(`event.${msg.body.event}`, { route: `event.${msg.body.event}`, code: 0, data: msg.body, msg });
+                    pomelo.emit(msg.body.event, { route: `event.${msg.body.event}`, code: 0, data: msg.body, msg });
                 } else {
-                    pomelo.emit(msg.route, { route: `event.${msg.body.event}`, code: 0, data: msg.body });
+                    pomelo.emit(msg.route, { route: `event.${msg.body.event}`, code: 0, data: msg.body, msg });
                 }
             }
             else {
                 const data = msg.body;
                 data.data = data;
+                data.msg = msg
                 pomelo.emit(msg.route, data);
             }
             return;
@@ -332,13 +333,14 @@ function create() {
         delete callbacks[msg.id];
         if (typeof cb !== 'function') {
             //     return pomelo.emit('message', Object.assign({route: msg.route}, msg.body));
-            pomelo.emit('message', Object.assign({ route: msg.route }, msg.body));
+            pomelo.emit('message', Object.assign({ route: msg.route, msg }, msg.body));
         }
 
         var err = (msg.body && msg.body.code) ? {
             code: msg.body.code,
             message: msg.body.message,
-            data: msg.body.data
+            data: msg.body.data,
+            msg: msg.body,
         } : null;
         return cb(err, msg.body);
     };
