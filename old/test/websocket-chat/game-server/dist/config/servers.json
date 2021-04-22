@@ -1,9 +1,9 @@
 {
   "development": {
 
-    "gate": [
+    "chat": [
       {
-        "id": "gate-server-1",
+        "id": "chat-server-1",
         "host": "127.0.0.1",
         "port": 6520
       }
