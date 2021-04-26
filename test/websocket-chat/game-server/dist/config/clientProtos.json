@@ -1,0 +1,9 @@
+{
+  "chat.chatHandler.send": {
+    "required string content": 1,
+    "required string target": 2
+  },
+  "gate.gateHandler.test": {
+    "required string uid": 1
+  }
+}

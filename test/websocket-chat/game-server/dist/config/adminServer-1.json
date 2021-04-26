@@ -1,0 +1,11 @@
+[{
+    "type": "connector",
+    "token": "ok"
+}, {
+    "type": "chat",
+    "token": "ok"
+},{
+    "type": "gate",
+    "token": "ok"
+}
+]
