@@ -85,7 +85,7 @@ func HandleData(user *UserConn, b []byte) (userreq global.UserReq) {
 	}
 	sss, ok1 := global.RemoteTypeStore.Get(serverType)
 	if !ok1 {
-		fmt.Println("no found server>>", serverType)
+		fmt.Println("no found server>>", serverType, c.Route)
 		return
 	}
 	ssss, ok2 := sss.(*global.RemoteTypeStoreType)

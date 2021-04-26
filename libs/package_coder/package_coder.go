@@ -3,7 +3,6 @@ package package_coder
 import (
 	"encoding/json"
 	"fmt"
-	paho "github.com/eclipse/paho.mqtt.golang"
 	concurrentMap "github.com/orcaman/concurrent-map"
 	"gogo-connector/components/global"
 	coder "gogo-connector/libs/pomelo_coder"
@@ -98,22 +97,69 @@ type RawResp struct {
 	Resp []json.RawMessage
 }
 
-func Decode(m paho.Message) {
-	log.Println("topic", m.Topic(), m.MessageID(), string(m.Payload()))
+//{"id":1,"msg":{"namespace":"sys","service":"channelRemote","method":"broadcast","args":["broadcast.test",{"isPush":true},{"type":"broadcast","userOptions":{},"isBroadcast":true}]}}
+type RawPush struct {
+	Id  int64
+	Msg struct {
+		Namespace string
+		Service   string
+		Method    string
+		Args      []json.RawMessage
+	}
+}
 
-	var rec RawResp
-	if e := json.Unmarshal(m.Payload(), &rec); e != nil {
+func DecodePush(topic string, messageID uint16, payload []byte) {
+	log.Println("topic", topic, messageID, string(payload))
+
+	var (
+		rec   RawPush
+		b     []byte
+		route string
+	)
+	if e := json.Unmarshal(payload, &rec); e != nil {
 		fmt.Println(e)
-		return
 	}
 
-	//if len(rec.Resp) != 2 {
-	//	fmt.Println("response array len not right", rec.Resp, len(rec.Resp));
-	//	fmt.Println(string(rec.Resp[0]))
-	//	fmt.Println(string(rec.Resp[1]))
-	//	fmt.Println(string(rec.Resp[2]))
-	//	return;
-	//}
+	if len(rec.Msg.Args) == 3 {
+		route = string(rec.Msg.Args[0])
+		b = rec.Msg.Args[1]
+	} else {
+		fmt.Println("skip")
+	}
+
+	fmt.Println("jsonStr>>>>", string(b))
+	fmt.Println("route>>>>", route)
+	if _b, e := proto_coder.JsonToPb(route, b, true); _b != nil && e == nil {
+		log.Println(" json2bt转换成功-", route)
+		b = _b
+	} else {
+		log.Println(" json2pb转换失败", route)
+	}
+
+	mm := coder.MessageEncode(0, coder.Message["TYPE_PUSH"], 0, route, b, false)
+	//mm := coder.MessageEncode(uint64(pp.ClientPkgID), coder.Message["TYPE_RESPONSE"], 0, route, b, false)
+	fmt.Println(mm, "--->>>> content: ", string(b))
+	mm = coder.PackageEncode(coder.Package["TYPE_DATA"], mm)
+	global.Users.IterCb(func(k string, v interface{}) {
+		select {
+		case v.(*coder.UserConn).MsgResp <- mm:
+		default:
+		}
+	})
+}
+
+func DecodeResp(topic string, messageID uint16, payload []byte) {
+	//log.Println("topic", m.Topic(), m.MessageID(), string(m.Payload()))
+	log.Println("topic", topic, messageID, string(payload))
+
+	var (
+		rec RawResp
+		b   []byte
+	)
+	if e := json.Unmarshal(payload, &rec); e != nil {
+		fmt.Println(e)
+	}
+
 	_pp, ok := pkgMap.Get(strconv.FormatInt(rec.Id, 10))
 	if !ok {
 		fmt.Println("no package info found")
@@ -124,16 +170,24 @@ func Decode(m paho.Message) {
 	//defer delete(pkgMap, rec.Id)
 	route := pp.Route
 
-	// do compose msg payload
-	var b []byte
 	if len(rec.Resp) == 2 && rec.Resp[1] != nil {
 		b = rec.Resp[1]
 	} else if len(rec.Resp) == 3 && rec.Resp[1] != nil {
 		b = rec.Resp[1]
 	} else {
 		fmt.Println("skip")
-		return
 	}
+
+	//if len(rec.Resp) != 2 {
+	//	fmt.Println("response array len not right", rec.Resp, len(rec.Resp));
+	//	fmt.Println(string(rec.Resp[0]))
+	//	fmt.Println(string(rec.Resp[1]))
+	//	fmt.Println(string(rec.Resp[2]))
+	//	return;
+	//}
+
+	// do compose msg payload
+
 	fmt.Println("jsonStr>>>>", string(b))
 	fmt.Println("route>>>>", route)
 	if _b, e := proto_coder.JsonToPb(route, b, false); _b != nil && e == nil {

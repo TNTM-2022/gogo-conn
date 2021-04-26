@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"gogo-connector/components/config"
 	"gogo-connector/libs/mqtt"
+	"gogo-connector/libs/package_coder"
 	"log"
 	"net"
 	"strconv"
@@ -36,7 +37,8 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 	//s.OnSubscribe(handleSubscribe)
 	//s.OnUnSubscribe(handleUnSubscribe)
 	s.OnPublish(func(b []byte) {
-		fmt.Println(string(b))
+		fmt.Println("server* ", string(b))
+		package_coder.DecodePush("", 0, b)
 	})
 	<-ctx.Done()
 }

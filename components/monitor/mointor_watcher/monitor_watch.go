@@ -128,5 +128,5 @@ func AddServers(ss []types.RegisterInfo) {
 }
 
 func handlePublish(mqtt *mqtt.MQTT, msg paho.Message) {
-	go package_coder.Decode(msg)
+	go package_coder.DecodeResp(msg.Topic(), msg.MessageID(), msg.Payload())
 }

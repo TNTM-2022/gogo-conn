@@ -5,7 +5,7 @@ import (
 	"gogo-connector/components/global"
 )
 
-type Settings struct {
+type Settings struct { // map string json.rawMessage
 	RoomId int32         `json:"roomId,omitempty"`
 	GameId int32         `json:"gameId,omitempty"`
 	Pos    int32         `json:"pos,omitempty"`

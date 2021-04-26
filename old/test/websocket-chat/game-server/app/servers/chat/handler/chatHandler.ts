@@ -1,8 +1,6 @@
-import { ChatRemote } from '../remote/chatRemote';
 import {Application, BackendSession} from 'pinus';
-import { FrontendSession } from 'pinus';
 
-export default function(app: Application) {
+export default function (app: Application) {
     return new ChatHandler(app);
 }
 
@@ -11,12 +9,16 @@ export class ChatHandler {
     }
 
     async test(msg, session) {
+        let channelService = this.app.get('channelService');
+        channelService.broadcast("connector", "broadcast.test", {isPush: true})
+
         return {
             code: 200,
             name: 'test',
             age: 10
         };
     }
+
     /**
      * Send messages to users
      *
@@ -24,7 +26,7 @@ export class ChatHandler {
      * @param {Object} session
      *
      */
-    async send(msg: {content: string , target: string}, session: BackendSession) {
+    async send(msg: { content: string, target: string }, session: BackendSession) {
         let rid = session.get('rid');
         let username = session.uid.split('*')[0];
         let channelService = this.app.get('channelService');

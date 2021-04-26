@@ -11,6 +11,8 @@ import (
 	"github.com/eclipse/paho.mqtt.golang/packets"
 )
 
+type PublishPacket = packets.PublishPacket
+
 type mqttserver interface {
 	New(addr string)
 	Close()
@@ -61,7 +63,7 @@ func (s *Server) registSubscribe(f interface{}) {
 		select {
 		case m := <-s.subscribeMessages:
 			fmt.Println("server", m)
-			v(m.(string))
+			v(string(m.([]byte)))
 		}
 	}
 
@@ -87,7 +89,6 @@ func (s *Server) registPublish(f interface{}) {
 		for {
 			select {
 			case m := <-s.publishMessages:
-				fmt.Println("server", m)
 				v(m.([]byte))
 			}
 		}
@@ -185,7 +186,7 @@ func (s *Server) handlePingreq(conn net.Conn) {
 }
 func (s *Server) handlePublish(clientID string, p *packets.PublishPacket, conn net.Conn) {
 	s.publishMessages <- p.Payload
-
+	fmt.Println("--------------------- ", p.TopicName)
 	var ack = &packets.PubackPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Puback}}
 
 	writeConn(ack, conn)
