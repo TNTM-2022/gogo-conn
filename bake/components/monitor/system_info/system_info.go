@@ -5,7 +5,7 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/load"
 	"github.com/shirou/gopsutil/v3/mem"
-	"go-connector/config"
+	"gogo-connector/components/config"
 	"log"
 	"os"
 	"runtime"

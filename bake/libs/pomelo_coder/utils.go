@@ -4,15 +4,15 @@ import (
 	"encoding/binary"
 )
 
-func msgHasID(mtype byte) bool {
+func msgHasID(mtype int) bool {
 	return mtype == Message["TYPE_REQUEST"] || mtype == Message["TYPE_RESPONSE"]
 }
 
-func msgHasRoute(mtype byte) bool {
+func msgHasRoute(mtype int) bool {
 	return mtype == Message["TYPE_REQUEST"] || mtype == Message["TYPE_NOTIFY"] ||
 		mtype == Message["TYPE_PUSH"]
 }
-func msgHasId(mtype byte) bool {
+func msgHasId(mtype int) bool {
 	return mtype == Message["TYPE_REQUEST"] || mtype == Message["TYPE_RESPONSE"]
 }
 
@@ -28,7 +28,7 @@ func caculateMsgIDBytes(id uint64) int {
 	return l
 }
 
-func encodeMsgFlag(mtype byte, compressRoute int, buffer []byte, offset int, compressGzip bool) int {
+func encodeMsgFlag(mtype int, compressRoute int, buffer []byte, offset int, compressGzip bool) int {
 	if mtype != Message["TYPE_REQUEST"] && mtype != Message["TYPE_NOTIFY"] &&
 		mtype != Message["TYPE_RESPONSE"] && mtype != Message["TYPE_PUSH"] {
 		// throw new Error('unkonw message type: ' + type);

@@ -4,9 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/shirou/gopsutil/v3/process"
-	cfg "go-connector/config"
-	"go-connector/global"
+	cfg "gogo-connector/components/config"
+	"gogo-connector/components/global"
 	"log"
 	"runtime"
 )
@@ -61,18 +60,11 @@ func list() []byte {
 		},
 	}
 
-	if proc, err := process.NewProcess(int32(cfg.Pid)); err == nil {
-		mem, err := proc.MemoryInfo()
-		if err != nil {
-			fmt.Println(err)
-		}
-		var memStats runtime.MemStats
-		runtime.ReadMemStats(&memStats)
-
-		monitInf.Body.HeapTotal = (memStats.HeapIdle + memStats.HeapInuse) / (1024 * 1024)
-		monitInf.Body.HeapUsed = memStats.HeapInuse / (1024 * 1024)
-		monitInf.Body.RSS = mem.RSS / (1024 * 1024)
-	}
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	monitInf.Body.HeapTotal = (memStats.HeapIdle + memStats.HeapInuse) / (1024 * 1024)
+	monitInf.Body.HeapUsed = memStats.HeapInuse / (1024 * 1024)
+	monitInf.Body.RSS = memStats.StackSys / (1024 * 1024)
 
 	result, e := json.Marshal(monitInf)
 	if e != nil {

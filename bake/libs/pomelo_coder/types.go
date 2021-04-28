@@ -1,5 +1,11 @@
 package coder
 
+import (
+	"context"
+	"gogo-connector/components/global"
+	"time"
+)
+
 // MType msg type
 type MType struct {
 	Type byte
@@ -9,29 +15,29 @@ type MType struct {
 // DecodedMsg struct
 type DecodedMsg struct {
 	ID            int64  `json:"id"`
-	Type          byte   `json:"type"` // 请求类型  TYPE_REQUEST, TYPE_NOTIFY, ...
+	Type          byte   `json:"type"`
 	CompressRoute bool   `json:"compressRoute"`
 	Route         string `json:"route"`
 	Body          []byte `json:"body"`
 	CompressGzip  bool   `json:"compressGzip"`
 }
 
-//type UserConn struct {
-//	// 客户端发送的消息
-//	//MsgReq chan []byte // 不需要了 通过 connect 的chan 进行替代
-//	// 客户端需要接收的消息
-//	MsgResp chan []byte
-//	// 服务器推送的消息
-//	MsgPush chan []byte
-//	Kick    chan []byte
-//	//MsgSend chan []byte
-//	State  int
-//	Tick   time.Time
-//	UID    global.UserID
-//	Ctx    context.Context
-//	Cancel context.CancelFunc
-//	Sid    global.SessionID
-//}
+type UserConn struct {
+	// 客户端发送的消息
+	//MsgReq chan []byte // 不需要了 通过 connect 的chan 进行替代
+	// 客户端需要接收的消息
+	MsgResp chan []byte
+	// 服务器推送的消息
+	MsgPush chan []byte
+	Kick    chan []byte
+	//MsgSend chan []byte
+	State  int
+	Tick   time.Time
+	UID    global.UserID
+	Ctx    context.Context
+	Cancel context.CancelFunc
+	Sid    global.SessionID
+}
 
 type handshake struct {
 	Code int `json:"code"`

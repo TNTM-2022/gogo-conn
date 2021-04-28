@@ -32,10 +32,9 @@ var Package = map[string]int{
 }
 
 // Message var
-var Message = map[string]byte{
+var Message = map[string]int{
 	"TYPE_REQUEST":  0,
 	"TYPE_NOTIFY":   1,
-
 	"TYPE_RESPONSE": 2,
 	"TYPE_PUSH":     3,
 }
@@ -155,14 +154,14 @@ MessageEncode func
  * @param  {Buffer} msg           message body bytes
  * @return {Buffer}               encode result
 */
-func MessageEncode(id uint64, mType byte, compressRoute int, route string, msg []byte, compressGzip bool) []byte {
+func MessageEncode(id uint64, mtype int, compressRoute int, route string, msg []byte, compressGzip bool) []byte {
 	// caculate message max length
 	var idBytes int
-	if msgHasID(mType) {
+	if msgHasID(mtype) {
 		idBytes = caculateMsgIDBytes(id)
 	}
 	msgLen := MsgFlagBytes + idBytes
-	if msgHasRoute(mType) {
+	if msgHasRoute(mtype) {
 		msgLen += MsgRouteLenBytes
 		if route != "" {
 			r := ProtocolStrEncode(route)
@@ -180,14 +179,14 @@ func MessageEncode(id uint64, mType byte, compressRoute int, route string, msg [
 	offset := 0
 
 	// add flag
-	offset = encodeMsgFlag(mType, compressRoute, buffer, offset, compressGzip)
+	offset = encodeMsgFlag(mtype, compressRoute, buffer, offset, compressGzip)
 	// add message id
 
-	if msgHasID(mType) {
+	if msgHasID(mtype) {
 		offset = encodeMsgID(id, buffer, offset)
 	}
 	// add route
-	if msgHasRoute(mType) {
+	if msgHasRoute(mtype) {
 		offset, buffer = encodeMsgRoute(compressRoute, route, buffer, offset)
 	}
 	// add body
@@ -217,7 +216,7 @@ func MessageDecode(b []byte) DecodedMsg {
 	mtype := (flag >> 1) & MsgTypeMask
 	compressGzip := (flag >> 4) & MsgCompressGzipMask
 
-	if msgHasId(mtype) {
+	if msgHasId(int(mtype)) {
 		i := 0
 		l := len(b)
 		for {
@@ -237,7 +236,7 @@ func MessageDecode(b []byte) DecodedMsg {
 	}
 
 	// parse route
-	if msgHasRoute(mtype) && len(b) > offset {
+	if msgHasRoute(int(mtype)) && len(b) > offset {
 		//  一定不会进行路由压缩的
 		// if (compressRoute) != 0 {
 		// 	t1 := (b[offset]) << 8
@@ -269,8 +268,8 @@ func MessageDecode(b []byte) DecodedMsg {
 	copyArray(body, 0, b, offset, bodyLen)
 	fmt.Println("compressRoute", compressRoute, "mtype", int(mtype))
 	return DecodedMsg{
-		ID:            int64(id), // 客户端发送过来的id
-		Type:          mtype, // 请求类型
+		ID:            int64(id),
+		Type:          mtype,
 		CompressRoute: compressRoute != 0,
 		Route:         route,
 		Body:          body,

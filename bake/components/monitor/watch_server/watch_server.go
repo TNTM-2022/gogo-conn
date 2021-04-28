@@ -1,0 +1,5 @@
+package watch_server
+
+//2021/04/05 22:08:33 {  {    0 0    0 [] []} }  --- monit.Signal   --- monit.Action  --- monit.Command  {"respId":0,"reqId":0,"moduleId":"systemInfo","body":{"signal":"","action":"","server":{"main":"","env":"","id":"","host":"","port":0,"clientPort":0,"frontend":"","serverType":"","token":"","pid":0,"remotePaths":null,"handlerPaths":null},"id":""},"command":""}
+//2021/04/05 22:08:33 {  {    0 0    0 [] []} }  --- monit.Signal   --- monit.Action  --- monit.Command  {"respId":0,"reqId":0,"moduleId":"nodeInfo","body":{"signal":"","action":"","server":{"main":"","env":"","id":"","host":"","port":0,"clientPort":0,"frontend":"","serverType":"","token":"","pid":0,"remotePaths":null,"handlerPaths":null},"id":""},"command":""}
+//2021/04/05 22:06:23 {  {    0 0    0 [] []} }  --- monit.Signal   --- monit.Action  --- monit.Command  {"respId":0,"reqId":0,"moduleId":"onlineUser","body":{"signal":"","action":"","server":{"main":"","env":"","id":"","host":"","port":0,"clientPort":0,"frontend":"","serverType":"","token":"","pid":0,"remotePaths":null,"handlerPaths":null},"id":""},"command":""}

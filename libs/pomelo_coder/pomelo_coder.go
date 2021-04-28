@@ -6,13 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"gogo-connector/components/global"
-	"strings"
 )
 
 // user conn 状态
 const (
-	StateInited  = 0
+	StateInitOk  = 0
 	StateWaitAck = 1
 	StateWorking = 2
 	StateClosed  = 3
@@ -27,16 +25,26 @@ const (
 
 //===================== handle pomelo protocol ===========================
 
-// 处理客户端handshake
+func InitCoder() *Coder {
+	return &Coder{
+		State: StateInitOk,
+	}
+}
+
+type Coder struct {
+	State rune
+}
+
+// HandleHandshake 处理客户端handshake
 // 检查整体状态 ST_INITED
 // todo checkClient
 // var opts = { heartbeat : setupHeartbeat(this) };
 //  opts.useProto = true;
 // 返回 TYPE_HANDSHAKE 报文， 携带上述的对象 packageEncode
-func HandleHandshake(user *UserConn) {
-	if user.State != StateInited {
-		user.Cancel()
-		return
+func (p *Coder) HandleHandshake() []byte {
+	if p.State != StateInitOk {
+		//user.Cancel()
+		return nil
 	}
 	s := handshake{
 		Code: CODE_OK,
@@ -51,74 +59,75 @@ func HandleHandshake(user *UserConn) {
 		},
 	}
 	j, _ := json.Marshal(s)
-	p := PackageEncode(Package["TYPE_HANDSHAKE"], []byte(string(j)))
-	user.MsgPush <- p
-	user.State = StateWaitAck
-	// fmt.Println("handshacke handler = 0")
+
+	p.State = StateWaitAck
+	return PackageEncode(Package["TYPE_HANDSHAKE"], []byte(string(j)))
 }
 
-//
-func HandleHandshakeAck(user *UserConn) {
-	if user.State != StateWaitAck {
-		user.Cancel()
-		return
+// HandleHandshakeAck 握手确认
+func (p *Coder) HandleHandshakeAck() bool {
+	if p.State != StateWaitAck {
+		return false
 	}
-	user.State = StateWorking
+	p.State = StateWorking
+	return true
 }
 
+// 这是一个确认值， 因为不需要服务端动态下发。
 func genDictVersion() string {
 	m := md5.Sum([]byte("{}"))
 	return base64.StdEncoding.EncodeToString(m[:])
 }
 
-func HandleData(user *UserConn, b []byte) (userreq global.UserReq) {
-	if user.State != StateWorking {
-		user.Cancel()
+func (p *Coder) HandleData(b []byte) (c DecodedMsg) {
+	if p.State != StateWorking {
 		return
 	}
 
-	c := MessageDecode(b)
-	fmt.Println(c.Route, string(c.Body))
-	serverType := strings.SplitN(c.Route, ".", 2)[0]
-	if serverType == "" {
-		return
-	}
-	sss, ok1 := global.RemoteTypeStore.Get(serverType)
-	if !ok1 {
-		fmt.Println("no found server>>", serverType, c.Route)
-		return
-	}
-	ssss, ok2 := sss.(*global.RemoteTypeStoreType)
-	if !ok2 {
-		fmt.Println("parse server>>", serverType)
-		return
-	}
-	fmt.Println("serverType:", serverType, "server.len:", len(ssss.Servers), ok1, ok2)
+	c = MessageDecode(b)
+	return c
 
-	userreq = global.UserReq{
-		UID:        user.UID,
-		Route:      c.Route,
-		ServerType: serverType,
-		Payload:    c.Body,
-		PkgID:      c.ID,
-		Sid:        user.Sid,
-	}
-
-	if ssss.ForwardCh == nil {
-		return
-	}
-
-	fmt.Println("将要写入消息", serverType)
-
-	select {
-	case ssss.ForwardCh <- userreq:
-	default:
-		{
-			fmt.Println("写入失败，队列堵塞", serverType)
-		}
-	}
-
-	return
+	//fmt.Println(c.Route, string(c.Body))
+	//serverType := strings.SplitN(c.Route, ".", 2)[0]
+	//if serverType == "" {
+	//	return
+	//}
+	//sss, ok1 := global.RemoteTypeStore.Get(serverType)
+	//if !ok1 {
+	//	fmt.Println("no found server>>", serverType, c.Route)
+	//	return
+	//}
+	//ssss, ok2 := sss.(*global.RemoteTypeStoreType)
+	//if !ok2 {
+	//	fmt.Println("parse server>>", serverType)
+	//	return
+	//}
+	//fmt.Println("serverType:", serverType, "server.len:", len(ssss.Servers), ok1, ok2)
+	//
+	//userreq = global.UserReq{
+	//	UID:        user.UID,
+	//	Route:      c.Route,
+	//	ServerType: serverType,
+	//	Payload:    c.Body,
+	//	PkgID:      c.ID,
+	//	Sid:        user.Sid,
+	//}
+	//
+	//if ssss.ForwardCh == nil {
+	//	return
+	//}
+	//
+	//fmt.Println("将要写入消息", serverType)
+	//
+	//select {
+	//case ssss.ForwardCh <- userreq:
+	//default:
+	//	{
+	//		fmt.Println("写入失败，队列堵塞", serverType)
+	//	}
+	//}
+	//
+	//return
 }
 
 type KickMsg struct {
@@ -127,7 +136,8 @@ type KickMsg struct {
 
 var defaultKick = []byte(`{"reson":"kick"}`)
 
-func handleKick(code int32, msg string, conn *websocket.Conn) {
+func (p *Coder) HandleKick(code int32, msg string, conn *websocket.Conn) {
+	p.State = StateClosed
 	r, err := json.Marshal(KickMsg{Reason: msg})
 	if err != nil {
 		r = defaultKick
@@ -137,4 +147,8 @@ func handleKick(code int32, msg string, conn *websocket.Conn) {
 		fmt.Println(err)
 		return
 	}
+}
+
+func (p *Coder) Close() {
+	p.State = StateClosed
 }

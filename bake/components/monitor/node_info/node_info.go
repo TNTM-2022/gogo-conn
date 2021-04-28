@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/shirou/gopsutil/v3/process"
-	"go-connector/config"
+	"gogo-connector/components/config"
 	"log"
 	"runtime"
 	"strconv"
