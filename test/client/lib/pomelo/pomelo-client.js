@@ -71,7 +71,6 @@ function create() {
         if (port) {
             url += ':' + port;
         }
-
         if (!params.type) {
             pomeloConnDebug('init websocket');
             handshakeBuffer.user = params.user;

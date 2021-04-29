@@ -1,4 +1,4 @@
-package mointor_watcher
+package monitor_watcher
 
 import (
 	"fmt"

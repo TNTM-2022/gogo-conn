@@ -1,4 +1,4 @@
-package mointor_watcher
+package monitor_watcher
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respEr
 	case "addServer":
 		{
 			fmt.Println("add server .............")
-			connectToServer(ss.Server)
+			ConnectToServer(ss.Server)
 			respErr = json.RawMessage(`1`)
 		}
 	case "removeServer":
@@ -49,7 +49,7 @@ func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respEr
 func removeServers(serverId string) {
 	fmt.Println("remove server ", serverId)
 }
-func connectToServer(serv types.RegisterInfo) {
+func ConnectToServer(serv types.RegisterInfo) {
 	if *config.ServerType == serv.ServerType {
 		log.Println("skip init same type server", serv.ServerID)
 		return

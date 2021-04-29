@@ -3,7 +3,7 @@ package proto_coder
 import (
 	"context"
 	"fmt"
-	"gogo-connector/components/config"
+	"go-connector/config"
 	"os"
 	"path"
 	"time"

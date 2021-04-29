@@ -9,18 +9,16 @@ import (
 	"log"
 )
 
-func Request(m *mqtt_client.MQTT, topic, moduleId string, msg []byte, cb interface{}) {
+func Request(m *mqtt_client.MQTT, topic, moduleId string, msg []byte, cb mqtt_client.CallBack) {
 	reqId := m.GetReqId()
 	rr := ComposeRequest(reqId, moduleId, msg)
 	m.Publish(topic, rr, 0, true)
 	m.Callbacks.Set(fmt.Sprintf("%v", reqId), cb)
 }
-
 func Notify(m *mqtt_client.MQTT, topic, moduleId string, msg []byte) {
 	rr := ComposeRequest(0, moduleId, msg)
 	m.Publish(topic, rr, 0, true)
 }
-
 func Response(m *mqtt_client.MQTT, topic string, reqId int64, err, data []byte) {
 	rr := ComposeResponse(reqId, err, data)
 
@@ -86,7 +84,7 @@ func OnPublishHandler(m *mqtt_client.MQTT, client paho.Client, msg paho.Message)
 				if fn, ok := v.(mqtt_client.CallBack); ok {
 					fn(mm.Error, mm.Body)
 				} else {
-					log.Println("callback fn error")
+					log.Println("callback fn error, %v, %v", v, respId)
 				}
 				return true
 			}) {

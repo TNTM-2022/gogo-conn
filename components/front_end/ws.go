@@ -117,9 +117,9 @@ func ws(c echo.Context) error {
 		return nil
 	}
 
-	MsgBack, MsgFront := make(chan package_coder.BackendMsg, 100), make(chan package_coder.BackendMsg, 100)
+	MsgFront := make(chan package_coder.BackendMsg, 100)
 	_sid := fmt.Sprintf("%v", sid)
-	global.SidBackChanStore.Set(_sid, MsgBack)
+	//global.SidBackChanStore.Set(_sid, MsgBack)
 	global.SidFrontChanStore.Set(_sid, MsgFront)
 
 	go func() {
@@ -141,7 +141,7 @@ func ws(c echo.Context) error {
 		}
 	}()
 
-	go func() {
+	func() {
 		for {
 			// Read
 			messageType, p, err := ws.ReadMessage()
@@ -171,10 +171,14 @@ func ws(c echo.Context) error {
 
 					case libPomeloCoder.Package["TYPE_DATA"]:
 						{
-							fmt.Println("TYPE_DATA")
 							backendMsg := handleReq(pomeloCoder, mm.Body, sid)
-							logger.DEBUG.Println(backendMsg.Route)
-							// todo 进行转发
+							logger.DEBUG.Println("TYPE_DATA >> ", backendMsg.Route)
+							serverType := strings.SplitN(backendMsg.Route, ".", 2)[0]
+							if v, ok := global.RemoteBackendTypeForwardChan.Get(serverType); ok {
+								if ch, ok := v.(chan package_coder.BackendMsg); ok {
+									ch <- backendMsg
+								}
+							}
 						}
 					case libPomeloCoder.Package["TYPE_KICK"]:
 						fmt.Println("TYPE_KICK")
@@ -187,7 +191,6 @@ func ws(c echo.Context) error {
 			}
 		}
 	}()
-
 	return nil
 }
 
@@ -221,5 +224,5 @@ func StartFrontServer() {
 		return nil
 	})
 
-	e.Logger.Fatal(e.Start(":1323"))
+	e.Logger.Fatal(e.Start("127.0.0.1:23456"))
 }

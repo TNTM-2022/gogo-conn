@@ -3,11 +3,14 @@ package monitor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	paho "github.com/eclipse/paho.mqtt.golang"
 	"go-connector/components/monitor/console"
+	"go-connector/components/monitor/monitor_watcher"
 	"go-connector/components/monitor/node_info"
 	"go-connector/components/monitor/online_user"
 	"go-connector/components/monitor/system_info"
+	"go-connector/components/monitor/types"
 	cfg "go-connector/config"
 	"go-connector/global"
 	mqtt "go-connector/libs/mqtt_client"
@@ -41,29 +44,10 @@ func StartMonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync
 	// 客户端退出
 }
 
-type RegisterInfo struct {
-	Main       string `json:"main"`
-	Env        string `json:"env"`
-	ServerID   string `json:"id"`
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	ClientPort int    `json:"clientPort"`
-	Frontend   string `json:"frontend"`
-	ServerType string `json:"serverType"`
-	Token      string `json:"token"`
-	PID        int32  `json:"pid"`
+type RegisterInfo = types.RegisterInfo
+type RegisterInfoRemoterPaths = types.RegisterInfoRemoterPaths
 
-	RemotePaths  []RegisterInfoRemoterPaths `json:"remotePaths"`
-	HandlerPaths []string                   `json:"handlerPaths"`
-}
-
-type RegisterInfoRemoterPaths struct {
-	Namespace  string `json:"namespace"`
-	ServerType string `json:"serverType"`
-	Path       string `json:"path"`
-}
-
-type Register struct {
+type Register = struct {
 	ServerID   string       `json:"id"`
 	Type       string       `json:"type"`
 	ServerType string       `json:"serverType"`
@@ -77,14 +61,6 @@ type MonitorServers map[string]RegisterInfo
 type RegisterResp struct {
 	Code int32  `json:"code"`
 	Msg  string `json:"msg"`
-}
-
-type Monitor struct {
-	RespId   int64       `json:"respId"`
-	ReqID    int64       `json:"reqId"`
-	ModuleID string      `json:"moduleId"`
-	Body     MonitorBody `json:"body"`
-	Command  string      `json:"command"`
 }
 
 type MonitorBody struct {
@@ -122,10 +98,13 @@ func doRegisterServer(mqttClient *mqtt.MQTT) {
 	switch mqttClient.IsReconnect() {
 	case false:
 		firstConnectCb(mqttClient, regStr)
+		fmt.Println("first connect")
 	case true:
 		//regInfo.Token = ""
 		//regStr, _ := json.Marshal(regInfo)
 		reconnectCb(mqttClient, regStr)
+		fmt.Println("re connect")
+
 	}
 }
 
@@ -142,9 +121,10 @@ func firstConnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 		ServerID: *cfg.ServerID,
 	}
 	subStr, _ := json.Marshal(subServer)
-	//mqttClient.Publish("monitor", subStr, 0, true)
 	Request(mqttClient, "monitor", "__masterwatcher__", subStr, func(err string, data []byte) {
-		//  if err == ""
+		if err != "" {
+			fmt.Println("????", err)
+		}
 		monitAllServerMap := DecodeAllServerMonitorInfo(data)
 		serv := make([]RegisterInfo, 0, len(monitAllServerMap))
 		for i, v := range monitAllServerMap {
@@ -152,8 +132,11 @@ func firstConnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 				serv = append(serv, v)
 			}
 		}
+		for _, s := range serv {
+			monitor_watcher.ConnectToServer(s)
+		}
 		//mointor_watcher.AddServers(serv) // todo 添加server
-		logger.DEBUG.Println(serv)
+		logger.DEBUG.Println("???", serv)
 	})
 
 	logger.INFO.Println(string(regStr), string(subStr))
@@ -230,10 +213,10 @@ func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 			req, respBody, respErr, notify = console.MonitorHandler(monit.Body.Signal, global.QuitFn, monit.Body.BlackList)
 		}
 
-	//case "__monitorwatcher__":
-	//	{
-	//		req, respBody, respErr, notify = mointor_watcher.MonitorHandler(monit.Body.Action, &monit.Body)
-	//	}
+	case "__monitorwatcher__":
+		{
+			req, respBody, respErr, notify = monitor_watcher.MonitorHandler(monit.Body.Action, &monit.Body)
+		}
 	//case "RestartNotifyModule":
 	//	{
 	//
@@ -298,8 +281,8 @@ func DecodeAllServerMonitorInfo(d []byte) MonitorServers {
 	return mm
 }
 
-func DecodeMonitor(d []byte) Monitor {
-	var mm Monitor
+func DecodeMonitor(d []byte) types.Monitor {
+	var mm types.Monitor
 	var ss string
 	if e := json.Unmarshal(d, &ss); e == nil {
 		d = []byte(ss)

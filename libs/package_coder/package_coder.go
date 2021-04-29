@@ -76,45 +76,38 @@ type RawRecv struct {
 }
 
 func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId int64, u *BackendMsg) {
-	var (
-		rec RawRecv
-
-		buf   []byte
-		route string
-		t     string
-	)
+	var rec RawRecv
+	u = &BackendMsg{}
 	if e := json.Unmarshal(payload, &rec); e != nil {
 		fmt.Println(e)
 	}
-
 	if rec.Resp != nil {
 		pkgId = rec.Id
-		decodeResp(&rec, u)
-		t = "response"
+		if len(rec.Resp) >= 2 && rec.Resp[1] != nil {
+			u.Payload = rec.Resp[1]
+			logger.DEBUG.Printf("resp router:>> %v; jsonStr>> %v", "", string(u.Payload))
+		}
 	}
-
-	logger.DEBUG.Println(route, t, string(buf))
 	return
 }
 
-func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, u *BackendMsg) {
-	var (
-		rec RawRecv
+func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, um *BackendMsg) {
+	var rec RawRecv
+	um = &BackendMsg{}
 
-		buf   []byte
-		route string
-		t     string
-	)
 	if e := json.Unmarshal(payload, &rec); e != nil {
 		fmt.Println(e)
 	}
-
 	if rec.Msg.Args != nil {
-		sids = decodePush(&rec, u)
-		t = "push"
+		route, sids, payload, opts := handlePushOrBroad(rec.Msg.Args)
+		if route == "" {
+			fmt.Println("no route; skip", sids)
+			return
+		}
+		um.Route = route
+		um.Payload = payload
+		um.Opts = opts
 	}
-
-	logger.DEBUG.Println(route, t, string(buf))
 	return
 }
 
@@ -159,35 +152,6 @@ func decodePush(rec *RawRecv, um *BackendMsg) (sids []uint32, ) {
 
 	logger.DEBUG.Printf("push router:>> %v; jsonStr>> %v", route, string(payload))
 	return
-}
-
-func decodeResp(rec *RawRecv, um *BackendMsg) {
-	//_pp, ok := pkgMap.Get(strconv.FormatInt(rec.Id, 10))
-	//if !ok {
-	//	logger.ERROR.Println("no package info found")
-	//	return
-	//}
-	//defer pkgMap.Remove(strconv.FormatInt(rec.Id, 10))
-	//pp := _pp.(*PkgBelong)
-	//
-	//route, sids := pp.Route, []uint32{pp.SID}
-
-	//var payload []byte
-	if len(rec.Resp) >= 2 && rec.Resp[1] != nil {
-		um.Payload = rec.Resp[1]
-		logger.DEBUG.Printf("resp router:>> %v; jsonStr>> %v","", string(um.Payload))
-	} else {
-		//logger.DEBUG.Printf("router: %v; skip", route)
-	}
-
-	//um.Route = route
-	//um.Sid = pp.SID
-	//um.PkgID = pp.ClientPkgID
-	//payload
-
-	return
-
-	//todo opts 填充值
 }
 
 //

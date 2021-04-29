@@ -37,7 +37,7 @@ func GetSid() (sid uint32, ok bool) {
 func BackSid(sid uint32) { // 内存可能会出现问题， 最好用 栈 方式
 	sidPool.locker.Lock()
 	defer sidPool.locker.Unlock()
-	sidPool.pool[len(sidPool.pool)] = sid
+	sidPool.pool = append(sidPool.pool, sid)
 	//sidPool.pool = append(sidPool.pool, sid)
 	return
 }
