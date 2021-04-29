@@ -117,7 +117,10 @@ func ws(c echo.Context) error {
 		return nil
 	}
 
-	MsgSend, MsgReceive := make(chan []byte, 100), make(chan package_coder.BackendMsg, 100)
+	MsgBack, MsgFront := make(chan package_coder.BackendMsg, 100), make(chan package_coder.BackendMsg, 100)
+	_sid := fmt.Sprintf("%v", sid)
+	global.SidBackChanStore.Set(_sid, MsgBack)
+	global.SidFrontChanStore.Set(_sid, MsgFront)
 
 	go func() {
 		for {
@@ -125,7 +128,7 @@ func ws(c echo.Context) error {
 			select {
 			//case <-ctx.Done():
 			//	return
-			case bb := <-MsgReceive:
+			case bb := <-MsgFront:
 				{
 					b := handleSend(bb)
 					fmt.Println("msg push", b)
@@ -151,7 +154,11 @@ func ws(c echo.Context) error {
 				for _, mm := range libPomeloCoder.PackageDecode(p) {
 					switch int(mm.Type) {
 					case libPomeloCoder.Package["TYPE_HANDSHAKE"]:
-						MsgSend <- pomeloCoder.HandleHandshake()
+						b := pomeloCoder.HandleHandshake()
+						if err := ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
+							fmt.Println("msg push closed>>2", err)
+							return
+						}
 
 					case libPomeloCoder.Package["TYPE_HANDSHAKE_ACK"]:
 						if !pomeloCoder.HandleHandshakeAck() {

@@ -28,11 +28,12 @@ type MQTT struct {
 	Order           bool
 	client          paho.Client
 	connectToken    *paho.ConnectToken
+	clientOpts      *paho.ClientOptions
 	SubscriptionQos byte
 	Persistent      bool
 
-	OnConnectCb func(mqtt *MQTT)                           //paho.OnConnectHandler
-	OnPublishCb func(client paho.Client, msg paho.Message) // paho.MessageHandler
+	OnConnectCb func(mqtt *MQTT) //paho.OnConnectHandler
+	//OnPublishCb func(client paho.Client, msg paho.Message) // paho.MessageHandler
 
 	reqId       int64
 	reqIdLocker sync.Mutex
@@ -61,12 +62,13 @@ func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
 	opts.SetAutoReconnect(true)
 	opts.SetMaxReconnectInterval(time.Second * 2)
 
-	opts.SetDefaultPublishHandler(client.publishHandler)
+	//opts.SetDefaultPublishHandler(client.publishHandler)
 	opts.SetOnConnectHandler(client.connectHandler)
 	opts.SetReconnectingHandler(client.reconnectHandler)
 
 	return opts, nil
 }
+
 // CreateMQTTClient creates a new MQTT client
 func CreateMQTTClient(mqttClient *MQTT) *MQTT {
 	mqttClient.Callbacks = cmap.New()
@@ -75,15 +77,25 @@ func CreateMQTTClient(mqttClient *MQTT) *MQTT {
 	if err != nil {
 		log.Fatalf("unable to configure MQTT client: %s", err)
 	}
+	mqttClient.clientOpts = opts
 
-	pahoClient := paho.NewClient(opts)
-	mqttClient.client = pahoClient
 	return mqttClient
 }
+
+func (m *MQTT) SetCallbacks(OnConnectCb func(mqtt *MQTT), OnPublishCb func(client paho.Client, msg paho.Message)) {
+	m.clientOpts.SetDefaultPublishHandler(OnPublishCb)
+	if OnConnectCb != nil {
+		m.OnConnectCb = OnConnectCb
+	}
+}
+
 func (m *MQTT) Stop() {
 	m.client.Disconnect(500)
 }
 func (m *MQTT) Start() {
+	pahoClient := paho.NewClient(m.clientOpts)
+	m.client = pahoClient
+
 	log.Printf("Starting MQTT client on tcp://%s:%v with Prefix:%v, Persistence:%v, OrderMatters:%v, KeepAlive:%v, PingTimeout:%v, QOS:%v", m.Host, m.Port, "", true, m.Order, m.KeepAliveSec, m.PingTimeoutSec, 1)
 	t := m.client.Connect()
 	t.Wait() //Timeout(time.Second * 2) // pinus 问题， 没有 connack确认。 game-server/node_modules/pinus-rpc/dist/lib/rpc-server/acceptors/mqtt-acceptor.js 44L。 client.connack({ returnCode: 0 });
@@ -125,7 +137,6 @@ func (m *MQTT) Publish(topic string, message []byte, qos byte, _async bool) {
 	}
 }
 
-
 func (m *MQTT) GetReqId() int64 {
 	m.reqIdLocker.Lock()
 	defer m.reqIdLocker.Unlock()
@@ -136,12 +147,12 @@ func (m *MQTT) GetReqId() int64 {
 	return m.reqId
 }
 
-func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
-	if m.OnPublishCb == nil {
-		return
-	}
-	m.OnPublishCb(client, msg)
-}
+//func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
+//	if m.OnPublishCb == nil {
+//		return
+//	}
+//	m.OnPublishCb(client, msg)
+//}
 
 //func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
 //	if msg.Topic() == "monitor" {

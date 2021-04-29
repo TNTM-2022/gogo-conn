@@ -4,26 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-connector/logger"
-	"strconv"
-	"time"
 )
 
 var pkgId pkgIdType
-//func(u *BackendMsg)  Encode() []byte {
-func  Encode(u *BackendMsg) []byte {
+
+func Encode(pkgId int64, u *BackendMsg) []byte {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("recovered from ", r)
 		}
 	}()
 
-	pkgId := pkgId.genPkgId()
-	pkgMap.Set(strconv.FormatInt(pkgId, 10), &PkgBelong{
-		SID:         u.Sid,
-		StartAt:     time.Now(),
-		ClientPkgID: u.PkgID,
-		Route:       u.Route,
-	})
+	//pkgId := pkgId.genPkgId()
+	//pkgMap.Set(strconv.FormatInt(pkgId, 10), &PkgBelong{
+	//	SID:         u.Sid,
+	//	StartAt:     time.Now(),
+	//	ClientPkgID: u.PkgID,
+	//	Route:       u.Route,
+	//})
 
 	m := &Payload{
 		Id: pkgId, // 通过 此处的 id 进行路由对应的user
@@ -77,7 +75,7 @@ type RawRecv struct {
 	Resp []json.RawMessage
 }
 
-func Decode(topic string, messageID uint16, payload []byte) (sids []uint32, u *BackendMsg) {
+func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId int64, u *BackendMsg) {
 	var (
 		rec RawRecv
 
@@ -89,17 +87,31 @@ func Decode(topic string, messageID uint16, payload []byte) (sids []uint32, u *B
 		fmt.Println(e)
 	}
 
-	switch true {
-	case rec.Msg.Args != nil:
-		{
-			sids = decodePush(&rec, u)
-			t = "push"
-		}
-	case rec.Resp != nil:
-		{
-			sids = decodeResp(&rec, u)
-			t = "response"
-		}
+	if rec.Resp != nil {
+		pkgId = rec.Id
+		decodeResp(&rec, u)
+		t = "response"
+	}
+
+	logger.DEBUG.Println(route, t, string(buf))
+	return
+}
+
+func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, u *BackendMsg) {
+	var (
+		rec RawRecv
+
+		buf   []byte
+		route string
+		t     string
+	)
+	if e := json.Unmarshal(payload, &rec); e != nil {
+		fmt.Println(e)
+	}
+
+	if rec.Msg.Args != nil {
+		sids = decodePush(&rec, u)
+		t = "push"
 	}
 
 	logger.DEBUG.Println(route, t, string(buf))
@@ -149,30 +161,30 @@ func decodePush(rec *RawRecv, um *BackendMsg) (sids []uint32, ) {
 	return
 }
 
-func decodeResp(rec *RawRecv, um *BackendMsg) (sids []uint32) {
-	_pp, ok := pkgMap.Get(strconv.FormatInt(rec.Id, 10))
-	if !ok {
-		logger.ERROR.Println("no package info found")
-		return
-	}
-	defer pkgMap.Remove(strconv.FormatInt(rec.Id, 10))
-	pp := _pp.(*PkgBelong)
+func decodeResp(rec *RawRecv, um *BackendMsg) {
+	//_pp, ok := pkgMap.Get(strconv.FormatInt(rec.Id, 10))
+	//if !ok {
+	//	logger.ERROR.Println("no package info found")
+	//	return
+	//}
+	//defer pkgMap.Remove(strconv.FormatInt(rec.Id, 10))
+	//pp := _pp.(*PkgBelong)
+	//
+	//route, sids := pp.Route, []uint32{pp.SID}
 
-	route, sids := pp.Route, []uint32{pp.SID}
-
-	var payload []byte
+	//var payload []byte
 	if len(rec.Resp) >= 2 && rec.Resp[1] != nil {
-		payload = rec.Resp[1]
+		um.Payload = rec.Resp[1]
+		logger.DEBUG.Printf("resp router:>> %v; jsonStr>> %v","", string(um.Payload))
 	} else {
-		logger.DEBUG.Printf("router: %v; skip", route)
+		//logger.DEBUG.Printf("router: %v; skip", route)
 	}
 
-	um.Route = route
-	um.Sid = pp.SID
-	um.PkgID = pp.ClientPkgID
-	um.Payload = payload
+	//um.Route = route
+	//um.Sid = pp.SID
+	//um.PkgID = pp.ClientPkgID
+	//payload
 
-	logger.DEBUG.Printf("resp router:>> %v; jsonStr>> %v", route, string(payload))
 	return
 
 	//todo opts 填充值

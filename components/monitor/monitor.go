@@ -20,7 +20,7 @@ import (
 func StartMonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	_mqttClient := mqtt.CreateMQTTClient(&mqtt.MQTT{
+	client := mqtt.CreateMQTTClient(&mqtt.MQTT{
 		Host:            "127.0.0.1",
 		Port:            "3005",
 		ClientID:        "clientId-1",
@@ -29,12 +29,12 @@ func StartMonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync
 		Order:           true,
 		KeepAliveSec:    10,
 		PingTimeoutSec:  30,
-
-		OnConnectCb: doRegisterServer,
-		OnPublishCb: publishCb,
 	})
-	client := MqttClient{_mqttClient}
-	client.OnPublishCb = client.OnPublishHandler
+	client.SetCallbacks(doRegisterServer, func(c paho.Client, msg paho.Message) {
+		if !OnPublishHandler(client, c, msg) {
+			onPublishCb(client, msg)
+		}
+	})
 	client.Start()
 
 	<-ctx.Done()
@@ -95,8 +95,7 @@ type MonitorBody struct {
 	BlackList []string     `json:"blacklist"`
 }
 
-func doRegisterServer(_mqttClient *mqtt.MQTT) {
-	mqttClient := &MqttClient{_mqttClient}
+func doRegisterServer(mqttClient *mqtt.MQTT) {
 	m, _ := os.Getwd()
 	regInfo := Register{
 		ServerID:   *cfg.ServerID,
@@ -130,7 +129,7 @@ func doRegisterServer(_mqttClient *mqtt.MQTT) {
 	}
 }
 
-func firstConnectCb(mqttClient *MqttClient, regStr []byte) {
+func firstConnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 	// 注册server， 携带 token
 	mqttClient.Publish("register", regStr, 0, false) // 直接发送 lib/monitor/monitorAgent line 151
 	log.Println("monitor client regist done")
@@ -144,7 +143,7 @@ func firstConnectCb(mqttClient *MqttClient, regStr []byte) {
 	}
 	subStr, _ := json.Marshal(subServer)
 	//mqttClient.Publish("monitor", subStr, 0, true)
-	mqttClient.Request("monitor", "__masterwatcher__", subStr, func(err string, data []byte) {
+	Request(mqttClient, "monitor", "__masterwatcher__", subStr, func(err string, data []byte) {
 		//  if err == ""
 		monitAllServerMap := DecodeAllServerMonitorInfo(data)
 		serv := make([]RegisterInfo, 0, len(monitAllServerMap))
@@ -161,13 +160,13 @@ func firstConnectCb(mqttClient *MqttClient, regStr []byte) {
 
 	logger.DEBUG.Println("+++ monitor start monitor")
 }
-func reconnectCb(mqttClient *MqttClient, regStr []byte) {
+func reconnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 	mqttClient.Publish("reconnect", regStr, 0, false) // 直接发送 lib/monitor/monitorAgent line 151
 	logger.DEBUG.Println("monitor registed")
 
 }
 
-func publishCb(mqttClient *paho.Client, m paho.Message) {
+func onPublishCb(mqttClient *mqtt.MQTT, m paho.Message) {
 	logger.INFO.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
 	switch m.Topic() {
 	case "register":
@@ -205,7 +204,7 @@ func handleRegisterTopic(m paho.Message) {
 	}
 }
 
-func handleMonitorTopic(mqttClient *MqttClient, m paho.Message) {
+func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 	monit := DecodeMonitor(m.Payload())
 	// ignoreModuleLog:= make()
 	ignoreModuleLog := map[string]bool{
@@ -276,13 +275,13 @@ func handleMonitorTopic(mqttClient *MqttClient, m paho.Message) {
 	}
 
 	if req != nil { // todo 应该不存在
-		mqttClient.Request("monitor", monit.ModuleID, req, func(err string, data []byte) {
+		Request(mqttClient, "monitor", monit.ModuleID, req, func(err string, data []byte) {
 			log.Println("request get a response", string(err), string(data))
 		})
 	} else if notify != nil {
-		mqttClient.Notify("monitor", monit.ModuleID, notify)
+		Notify(mqttClient, "monitor", monit.ModuleID, notify)
 	} else if respBody != nil || respErr != nil {
-		mqttClient.Response("monitor", monit.ReqID, respErr, respBody)
+		Response(mqttClient, "monitor", monit.ReqID, respErr, respBody)
 	}
 }
 

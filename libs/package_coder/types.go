@@ -74,8 +74,8 @@ type BackendMsg struct {
 }
 
 type PkgBelong struct {
-	SID uint32
 	//UID         UserID // 这里不对， 没有鉴权 没有 uid， 只有sid
+	SID         uint32
 	StartAt     time.Time
 	ClientPkgID int64
 	Route       string

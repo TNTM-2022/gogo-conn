@@ -5,28 +5,23 @@ import (
 	"fmt"
 	paho "github.com/eclipse/paho.mqtt.golang"
 	"go-connector/libs/mqtt_client"
-	"go-connector/libs/package_coder"
 	"go-connector/logger"
 	"log"
 )
 
-type MqttClient struct {
-	*mqtt_client.MQTT
-}
-
-func (m *MqttClient) Request(topic, moduleId string, msg []byte, cb mqtt_client.CallBack) {
+func Request(m *mqtt_client.MQTT, topic, moduleId string, msg []byte, cb interface{}) {
 	reqId := m.GetReqId()
 	rr := ComposeRequest(reqId, moduleId, msg)
 	m.Publish(topic, rr, 0, true)
 	m.Callbacks.Set(fmt.Sprintf("%v", reqId), cb)
 }
 
-func (m *MqttClient) Notify(topic, moduleId string, msg []byte) {
+func Notify(m *mqtt_client.MQTT, topic, moduleId string, msg []byte) {
 	rr := ComposeRequest(0, moduleId, msg)
 	m.Publish(topic, rr, 0, true)
 }
 
-func (m *MqttClient) Response(topic string, reqId int64, err, data []byte) {
+func Response(m *mqtt_client.MQTT, topic string, reqId int64, err, data []byte) {
 	rr := ComposeResponse(reqId, err, data)
 
 	m.Publish(topic, rr, 0, true)
@@ -67,7 +62,7 @@ func ComposeResponse(reqId int64, err, res []byte) (rr []byte) { // req: {reqId:
 	return
 }
 
-func (m *MqttClient) OnPublishHandler(client paho.Client, msg paho.Message) {
+func OnPublishHandler(m *mqtt_client.MQTT, client paho.Client, msg paho.Message) bool {
 	if msg.Topic() == "monitor" {
 		var mm struct {
 			RespId int64           `json:"respId"`
@@ -95,15 +90,11 @@ func (m *MqttClient) OnPublishHandler(client paho.Client, msg paho.Message) {
 				}
 				return true
 			}) {
-				return
+				return true
 			} else {
 				logger.ERROR.Printf("unknown respId = %v", mm.RespId)
 			}
 		}
 	}
-
-	logger.INFO.Println(msg)
-	if m.OnPublishCb != nil {
-		package_coder.Decode(msg.Topic(), msg.MessageID(), msg.Payload())
-	}
+	return false
 }

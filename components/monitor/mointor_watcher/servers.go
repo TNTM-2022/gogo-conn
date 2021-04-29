@@ -3,6 +3,7 @@ package mointor_watcher
 import (
 	"encoding/json"
 	"fmt"
+	paho "github.com/eclipse/paho.mqtt.golang"
 	concurrentMap "github.com/orcaman/concurrent-map"
 	"go-connector/components/monitor/types"
 	config "go-connector/config"
@@ -56,14 +57,16 @@ func connectToServer(serv types.RegisterInfo) {
 
 	fmt.Println(serv)
 
-	_client := mqtt_client.CreateMQTTClient(&mqtt_client.MQTT{
+	client := mqtt_client.CreateMQTTClient(&mqtt_client.MQTT{
 		Host:     serv.Host,
 		Port:     fmt.Sprintf("%v", serv.Port),
 		ClientID: serv.ServerID,
 		//ServerType: serv.ServerType,
 	})
-	client := &MqttClient{_client}
-	client.OnPublishCb = client.OnPublishHandler
+
+	client.SetCallbacks(nil, func(c paho.Client, msg paho.Message) {
+		OnPublishHandler(client, c, msg)
+	})
 	client.Start()
 	defer client.Stop()
 	log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnected())
@@ -81,7 +84,7 @@ func connectToServer(serv types.RegisterInfo) {
 		return newV
 	})
 
-	go func(s types.RegisterInfo, client *MqttClient) {
+	go func(s types.RegisterInfo, client *mqtt_client.MQTT) {
 		_forwardChan, ok := global.RemoteBackendTypeForwardChan.Get(s.ServerType)
 		if !ok {
 			log.Println("no found server in store.")
@@ -90,13 +93,18 @@ func connectToServer(serv types.RegisterInfo) {
 
 		for msg := range forwardChan {
 			logger.DEBUG.Println(">>>forward rpc to backend <<<", s.Host, s.Port, s.ServerID, msg.ServerType)
-			p := package_coder.Encode(&msg) // 后端 wrap 组装 session
+			pkgId := client.GetReqId()
+			p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
 			if p == nil {
 				continue
 			}
 
-			client.Publish("rpc", p, 0, true)
-			//client.MqttClient.Publish("rpc", p, 0, true)
+			Request(client, "rpc", "", p, &PkgBelong{
+				SID:         msg.Sid,
+				StartAt:     time.Now(),
+				ClientPkgID: msg.PkgID,
+				Route:       msg.Route,
+			})
 			log.Println("rpc send ok", client.ClientID)
 		}
 	}(serv, client)
