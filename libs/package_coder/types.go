@@ -29,27 +29,29 @@ import (
 
 type Settings map[string]json.RawMessage
 
-type PayloadMsgArgs struct {
-	Id         uint64          `json:"id,omitempty"`
-	Route      string          `json:"route,omitempty"`
-	Body       json.RawMessage `json:"body,omitempty"`
-	FrontendId string          `json:"frontendId,omitempty"`
-	//Uid        global.UserID   `json:"uid,omitempty"`
-	Settings *Settings `json:"settings,omitempty"`
-	IsBf     bool      `json:"isBf,omitempty"`
+type PkgPayloadInfo struct {
+	PkgID uint64 `json:"id"`
+	Route string `json:"route"`
+	Body  json.RawMessage
+	IsBf  bool `json:"isBf,omitempty"` // 自定义添加的， 用来标识是不是透传 protobuf 给后端了
 }
-
+type Session struct {
+	Sid           uint64                     `json:"id"`
+	FrontServerId string                     `json:"frontendId"`
+	Uid           int32                      `json:"uid,omitempty"`
+	Settings      map[string]json.RawMessage `json:"settings"`
+}
 type PayloadMsg struct {
-	Namespace  string            `json:"namespace,omitempty"`
-	ServerType string            `json:"serverType,omitempty"`
-	Service    string            `json:"service,omitempty"`
-	Method     string            `json:"method,omitempty"`
-	Args       []*PayloadMsgArgs `json:"args,omitempty"`
+	Namespace  string             `json:"namespace,omitempty"`
+	ServerType string             `json:"serverType,omitempty"`
+	Service    string             `json:"service,omitempty"`
+	Method     string             `json:"method,omitempty"`
+	Args       [2]json.RawMessage `json:"args,omitempty"`
 }
 
 type Payload struct {
-	Id  int64       `json:"id,omitempty"`
-	Msg *PayloadMsg `json:"msg,omitempty"`
+	Id  int64      `json:"id,omitempty"`
+	Msg PayloadMsg `json:"msg,omitempty"`
 }
 
 type UserID = uint32
@@ -65,8 +67,9 @@ type BackendMsg struct {
 	Payload    []byte
 	PkgID      uint64
 	Sid        uint32
-	ServerId   string
-	Opts       json.RawMessage
+	//ServerId   string
+	FrontServerId string
+	Opts          json.RawMessage
 
 	MType         byte `json:"type"`          // 请求类型  TYPE_REQUEST, TYPE_NOTIFY, ...
 	CompressRoute bool `json:"compressRoute"` // 是否压缩陆游

@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go-connector/config"
 	"go-connector/global"
 	"go-connector/libs/package_coder"
 	libPomeloCoder "go-connector/libs/pomelo_coder"
@@ -40,7 +41,8 @@ func handleReq(pomeloCoder *libPomeloCoder.Coder, buf []byte, sid uint32) packag
 		Payload:    buf,
 		PkgID:      dMsg.ID,
 		Sid:        sid,
-		//ServerId:   serverId, // todo 不清楚
+		//ServerId:   serverId, // todo 不清楚 应该不是 frontendserverid
+		FrontServerId: *config.ServerID,
 
 		MType:         dMsg.Type, // todo  没有实现剩下这几项
 		CompressGzip:  dMsg.CompressGzip,
@@ -133,7 +135,7 @@ func ws(c echo.Context) error {
 			case bb := <-MsgFront:
 				{
 					b := handleSend(bb)
-					fmt.Println("msg push", b)
+					//fmt.Println("msg push", string(b))
 					if err := ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
 						fmt.Println("msg push closed>>2", err)
 						return

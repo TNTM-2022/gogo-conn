@@ -12,6 +12,7 @@ import (
 )
 
 type PublishPacket = packets.PublishPacket
+type PublishHandle func(*Conn, string, uint16, []byte)
 
 type Client struct {
 	ID   string
@@ -25,6 +26,18 @@ type Server struct {
 	Clients             sync.Map
 	ClientsCount        int64
 	Topics              map[string]interface{}
+	onPublishHandle     PublishHandle
+}
+type Conn struct {
+	conn net.Conn
+}
+
+func (c *Conn) Reply(b []byte) error {
+	buf := new(bytes.Buffer)
+	p := packets.PublishPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Publish}, Payload: b, TopicName: "rpc"}
+	writeConn(&p, c.conn)
+	fmt.Println(c.conn.Write(buf.Bytes()))
+	return nil
 }
 
 func (s *Server) Publish(topic string, content string) {
@@ -41,8 +54,9 @@ func (s *Server) OnUnSubscribe(f interface{}) {
 
 }
 
-func (s *Server) OnPublish(f interface{}) {
-	go s.registPublish(f)
+func (s *Server) OnPublish(f PublishHandle) {
+	s.onPublishHandle = f
+	//go s.registPublish(f)
 
 }
 
@@ -72,19 +86,19 @@ func (s *Server) registUnSubscribe(f interface{}) {
 
 }
 
-func (s *Server) registPublish(f interface{}) {
-
-	if v, ok := f.(func(m []byte)); ok {
-		for {
-			select {
-			case m := <-s.publishMessages:
-				v(m.([]byte))
-			}
-		}
-
-	}
-
-}
+//func (s *Server) registPublish(f interface{}) {
+//
+//	if v, ok := f.(func(m []byte)); ok {
+//		for {
+//			select {
+//			case m := <-s.publishMessages:
+//				v(m.([]byte))
+//			}
+//		}
+//
+//	}
+//
+//}
 
 func (s *Server) Addr() net.Addr {
 	return s.addr
@@ -98,7 +112,7 @@ func (s *Server) New(addr string) error {
 		// handle error
 	}
 	s.subscribeMessages = make(chan interface{})
-	s.publishMessages = make(chan interface{})
+	//s.publishMessages = make(chan interface{})
 
 	s.addr = ln.Addr()
 	go func() {
@@ -118,6 +132,7 @@ func (s *Server) New(addr string) error {
 func (s *Server) handleConnection(conn net.Conn) {
 
 	defer func() {
+		fmt.Println("为啥关闭了?")
 		conn.Close()
 	}()
 
@@ -125,18 +140,18 @@ func (s *Server) handleConnection(conn net.Conn) {
 	if err != nil {
 		return
 	}
+	fmt.Println("------ mqtt server")
 
 	for {
-
 		p, err := packets.ReadPacket(conn)
 		if err != nil {
-			// fmt.Printf("Error reading packet: %s", err.Error())
+			fmt.Printf("Error reading packet: %s", err.Error())
 			return
 		}
 		switch messType := p.(type) {
 		case *packets.ConnectPacket:
 			//???? 是吗? MQTT协议规定要断开重复的
-			conn.Close()
+			//conn.Close()
 		case *packets.SubscribePacket:
 			s.handleSubscribe(clientID, p.(*packets.SubscribePacket), conn)
 		case *packets.DisconnectPacket:
@@ -174,10 +189,11 @@ func (s *Server) handlePingreq(conn net.Conn) {
 	writeConn(ack, conn)
 }
 func (s *Server) handlePublish(clientID string, p *packets.PublishPacket, conn net.Conn) {
-	s.publishMessages <- p.Payload
+	if s.onPublishHandle != nil {
+		go s.onPublishHandle(&Conn{conn}, p.TopicName, p.MessageID, p.Payload)
+	}
 	fmt.Println("--------------------- ", p.TopicName)
 	var ack = &packets.PubackPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Puback}}
-
 	writeConn(ack, conn)
 }
 func (s *Server) handleUnSubscribe(clientID string, p *packets.UnsubscribePacket, conn net.Conn) {
@@ -230,7 +246,6 @@ func (s *Server) handleConnect(conn net.Conn) (id string, error error) {
 
 func writeConn(p packets.ControlPacket, conn net.Conn) error {
 	buf := new(bytes.Buffer)
-
 	if err := p.Write(buf); err != nil {
 		return err
 	}

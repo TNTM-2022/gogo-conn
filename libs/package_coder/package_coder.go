@@ -14,37 +14,67 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 			fmt.Println("recovered from ", r)
 		}
 	}()
+	pkgContentInfo, _ := json.Marshal(PkgPayloadInfo{
+		PkgID: u.PkgID, // 客户端包
+		Route: u.Route,
+		Body:  u.Payload,
+	})
+
+	sessionSettings := map[string]json.RawMessage{ // 放到全局
+		"uid": json.RawMessage(`1`),
+	}
+	session, _ := json.Marshal(Session{ // 放到全局
+		Sid:           uint64(u.Sid), // sid
+		FrontServerId: u.FrontServerId,
+		Uid:           12, // userReq.UID, // uid 是bind 的， setting是 set 的结果
+		Settings:      sessionSettings,
+	})
 
 	m := &Payload{
-		Id: pkgId, // 通过 此处的 id 进行路由对应的user
-
-		Msg: &PayloadMsg{
+		Id: pkgId,
+		Msg: PayloadMsg{
 			Namespace:  "sys",
 			ServerType: u.ServerType, // todo 确认 是 本server 还是目标server
 			Service:    "msgRemote",
 			Method:     "forwardMessage",
-			Args: []*PayloadMsgArgs{
-				&PayloadMsgArgs{
-					Id:    u.PkgID, // 客户端包
-					Route: u.Route,
-					Body:  u.Payload,
-				},
-				&PayloadMsgArgs{
-					Id:         uint64(u.Sid), // sid
-					FrontendId: u.ServerId,
-					//Settings:,
-					// todo session 设置
-					//Uid:        userReq.UID,
-					//Settings: &Settings{
-					//	GameId: 0,
-					//	RoomId: 1,
-					//	UID:    userReq.UID,
-					//	DeskId: 10000000010041,
-					//},
-				},
+			Args: [2]json.RawMessage{
+				pkgContentInfo,
+				session,
 			},
 		},
 	}
+	//
+	//m := &Payload{
+	//	Id: pkgId, // 通过 此处的 id 进行路由对应的user
+	//
+	//	Msg: &PayloadMsg{
+	//		Namespace:  "sys",
+	//		ServerType: u.ServerType, // todo 确认 是 本server 还是目标server
+	//		Service:    "msgRemote",
+	//		Method:     "forwardMessage",
+	//		Args: []*PayloadMsgArgs{ // 修改成 【】json.rawmessage
+	//			&PayloadMsgArgs{
+	//				Id:    u.PkgID, // 客户端包
+	//				Route: u.Route,
+	//				Body:  u.Payload,
+	//			},
+	//			&PayloadMsgArgs{
+	//				Id:         uint64(u.Sid), // sid
+	//				FrontendId: u.ServerId,
+	//				//Settings:,
+	//				// todo session 设置
+	//				Uid:      12, // userReq.UID, // uid 是bind 的， setting是 set 的结果
+	//				Settings: json.RawMessage(`{"uid": 12}`),
+	//				//Settings: &Settings{
+	//				//	GameId: 0,
+	//				//	RoomId: 1,
+	//				//	UID:    userReq.UID,
+	//				//	DeskId: 10000000010041,
+	//				//},
+	//			},
+	//		},
+	//	},
+	//}
 	if j, e := json.Marshal(m); e == nil {
 		fmt.Println("......", string(j))
 		return j
@@ -56,14 +86,14 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 // {"id":1,"msg":{"namespace":"sys","service":"channelRemote","method":"broadcast","args":["broadcast.test",{"isPush":true},{"type":"broadcast","userOptions":{},"isBroadcast":true}]}}
 // {"id":0,"msg":{"namespace":"sys","service":"channelRemote","method":"pushMessage","args":["push.push",{"type":"push","is_broad":true},[1],{"type":"push","userOptions":{},"isPush":true}]}}
 type RawRecv struct {
-	Id  uint64
+	Id  uint64 `json:"id"`
 	Msg struct {
-		Namespace string
-		Service   string
-		Method    string
-		Args      []json.RawMessage
-	}
-	Resp []json.RawMessage
+		Namespace string            `json:"namespace"`
+		Service   string            `json:"service"`
+		Method    string            `json:"method"`
+		Args      []json.RawMessage `json:"args"`
+	} `json:"msg"`
+	Resp []json.RawMessage `json:"resp"`
 }
 
 func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId uint64, u *BackendMsg) {
@@ -81,13 +111,16 @@ func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId uint64, u
 	return
 }
 
-func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, um *BackendMsg) {
+func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, pkgId uint64, um *BackendMsg) {
 	var rec RawRecv
 	um = &BackendMsg{}
 
+	fmt.Println(string(payload))
 	if e := json.Unmarshal(payload, &rec); e != nil {
 		fmt.Println(e)
 	}
+	pkgId = rec.Id
+	fmt.Println("pkgId", pkgId)
 	if rec.Msg.Args != nil {
 		um.Route, sids, um.Payload, um.Opts = handlePushOrBroad(rec.Msg.Args)
 		if um.Route == "" {

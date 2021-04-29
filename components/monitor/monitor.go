@@ -79,12 +79,12 @@ func doRegisterServer(mqttClient *mqtt.MQTT) {
 		ServerType: *cfg.ServerType,
 		PID:        int32(cfg.Pid),
 		Info: RegisterInfo{
-			Main:         m,
-			Env:          *cfg.Env,
-			ServerID:     *cfg.ServerID,
-			Host:         *cfg.MqttServerHost, // mqtt server host
-			Port:         cfg.MqttServerPort,  // mqtt server port
-			ClientPort:   cfg.MqttServerPort,  // ws server port
+			Main:     m,
+			Env:      *cfg.Env,
+			ServerID: *cfg.ServerID,
+			Host:     *cfg.MqttServerHost, // mqtt server host
+			Port:     cfg.MqttServerPort,  // mqtt server port
+			//ClientPort:   cfg.MqttServerPort,  // ws server port
 			Frontend:     "true",
 			ServerType:   "connector",
 			Token:        "",

@@ -80,7 +80,7 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 	}
 
 	if fd == nil {
-		fmt.Println("no fd", namespace)
+		fmt.Println("protobuf no fd", namespace, isPush)
 		return nil, nil
 	}
 	log.Printf("json2pb; namespace=> %s; messageName=> %s", namespace, messageName)
