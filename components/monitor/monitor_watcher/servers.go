@@ -68,7 +68,7 @@ func ConnectToServer(serv types.RegisterInfo) {
 		OnPublishHandler(client, c, msg)
 	})
 	client.Start()
-	defer client.Stop()
+	//defer client.Stop()
 	log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnected())
 
 	// 初始化 serverType：chan  serverType：serverId：serverInfo
@@ -79,6 +79,7 @@ func ConnectToServer(serv types.RegisterInfo) {
 	cmp.Upsert(serv.ServerID, client, func(exists bool, oldV, newV interface{}) interface{} {
 		if v, ok := oldV.(*mqtt_client.MQTT); exists && ok {
 			v.Stop()
+			fmt.Println("关闭？？？？")
 			// todo 停止消息转发， 然后再停止server client
 		}
 		return newV
@@ -92,24 +93,33 @@ func ConnectToServer(serv types.RegisterInfo) {
 		forwardChan, _ := _forwardChan.(chan package_coder.BackendMsg)
 
 		for msg := range forwardChan {
-			logger.DEBUG.Println(">>>forward rpc to backend <<<", s.Host, s.Port, s.ServerID, msg.ServerType)
+
+			logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
 			pkgId := client.GetReqId()
 			p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
 			if p == nil {
+				log.Println("encoding skip...")
 				continue
 			}
 
-			Request(client, "rpc", "", p, &PkgBelong{
+			if !client.IsConnected() { // 如果server 关闭了 消息要重新推回去
+				fmt.Printf("client.IsConnected() = %v", false)
+				forwardChan <- msg
+				return
+			}
+			log.Println("---------------")
+			Request(client, "rpc", "", pkgId, p, &PkgBelong{
 				SID:         msg.Sid,
 				StartAt:     time.Now(),
 				ClientPkgID: msg.PkgID,
 				Route:       msg.Route,
 			})
+			log.Println("===============")
 			log.Println("rpc send ok", client.ClientID)
 		}
 	}(serv, client)
 
-	time.Sleep(time.Second * 100)
+	//time.Sleep(time.Second * 100)
 	//return nil
-	// todo 卡住 不要结束
+	//todo 卡住 不要结束
 }

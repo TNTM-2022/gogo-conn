@@ -1,4 +1,4 @@
-package coder
+package pomelo_coder
 
 // MType msg type
 type MType struct {
@@ -8,7 +8,7 @@ type MType struct {
 
 // DecodedMsg struct
 type DecodedMsg struct {
-	ID            int64  `json:"id"`
+	ID            uint64 `json:"id"`
 	Type          byte   `json:"type"` // 请求类型  TYPE_REQUEST, TYPE_NOTIFY, ...
 	CompressRoute bool   `json:"compressRoute"`
 	Route         string `json:"route"`

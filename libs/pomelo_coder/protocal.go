@@ -1,4 +1,4 @@
-package coder
+package pomelo_coder
 
 import (
 	"bytes"
@@ -33,8 +33,8 @@ var Package = map[string]int{
 
 // Message var
 var Message = map[string]byte{
-	"TYPE_REQUEST":  0,
-	"TYPE_NOTIFY":   1,
+	"TYPE_REQUEST": 0,
+	"TYPE_NOTIFY":  1,
 
 	"TYPE_RESPONSE": 2,
 	"TYPE_PUSH":     3,
@@ -269,8 +269,8 @@ func MessageDecode(b []byte) DecodedMsg {
 	copyArray(body, 0, b, offset, bodyLen)
 	fmt.Println("compressRoute", compressRoute, "mtype", int(mtype))
 	return DecodedMsg{
-		ID:            int64(id), // 客户端发送过来的id
-		Type:          mtype, // 请求类型
+		ID:            uint64(id), // 客户端发送过来的id
+		Type:          mtype,      // 请求类型
 		CompressRoute: compressRoute != 0,
 		Route:         route,
 		Body:          body,

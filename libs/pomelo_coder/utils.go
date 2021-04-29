@@ -1,4 +1,4 @@
-package coder
+package pomelo_coder
 
 import (
 	"encoding/binary"

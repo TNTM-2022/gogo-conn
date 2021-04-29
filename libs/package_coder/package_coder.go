@@ -15,14 +15,6 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 		}
 	}()
 
-	//pkgId := pkgId.genPkgId()
-	//pkgMap.Set(strconv.FormatInt(pkgId, 10), &PkgBelong{
-	//	SID:         u.Sid,
-	//	StartAt:     time.Now(),
-	//	ClientPkgID: u.PkgID,
-	//	Route:       u.Route,
-	//})
-
 	m := &Payload{
 		Id: pkgId, // 通过 此处的 id 进行路由对应的user
 
@@ -38,7 +30,7 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 					Body:  u.Payload,
 				},
 				&PayloadMsgArgs{
-					Id:         int64(u.Sid), // sid
+					Id:         uint64(u.Sid), // sid
 					FrontendId: u.ServerId,
 					//Settings:,
 					// todo session 设置
@@ -53,7 +45,6 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 			},
 		},
 	}
-
 	if j, e := json.Marshal(m); e == nil {
 		fmt.Println("......", string(j))
 		return j
@@ -65,7 +56,7 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 // {"id":1,"msg":{"namespace":"sys","service":"channelRemote","method":"broadcast","args":["broadcast.test",{"isPush":true},{"type":"broadcast","userOptions":{},"isBroadcast":true}]}}
 // {"id":0,"msg":{"namespace":"sys","service":"channelRemote","method":"pushMessage","args":["push.push",{"type":"push","is_broad":true},[1],{"type":"push","userOptions":{},"isPush":true}]}}
 type RawRecv struct {
-	Id  int64
+	Id  uint64
 	Msg struct {
 		Namespace string
 		Service   string
@@ -75,7 +66,7 @@ type RawRecv struct {
 	Resp []json.RawMessage
 }
 
-func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId int64, u *BackendMsg) {
+func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId uint64, u *BackendMsg) {
 	var rec RawRecv
 	u = &BackendMsg{}
 	if e := json.Unmarshal(payload, &rec); e != nil {
@@ -85,7 +76,6 @@ func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId int64, u 
 		pkgId = rec.Id
 		if len(rec.Resp) >= 2 && rec.Resp[1] != nil {
 			u.Payload = rec.Resp[1]
-			logger.DEBUG.Printf("resp router:>> %v; jsonStr>> %v", "", string(u.Payload))
 		}
 	}
 	return
@@ -99,14 +89,11 @@ func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, 
 		fmt.Println(e)
 	}
 	if rec.Msg.Args != nil {
-		route, sids, payload, opts := handlePushOrBroad(rec.Msg.Args)
-		if route == "" {
+		um.Route, sids, um.Payload, um.Opts = handlePushOrBroad(rec.Msg.Args)
+		if um.Route == "" {
 			fmt.Println("no route; skip", sids)
 			return
 		}
-		um.Route = route
-		um.Payload = payload
-		um.Opts = opts
 	}
 	return
 }
@@ -138,7 +125,7 @@ func handlePushOrBroad(b []json.RawMessage) (route string, sids []uint32, cc jso
 	return
 }
 
-func decodePush(rec *RawRecv, um *BackendMsg) (sids []uint32, ) {
+func decodePush(rec *RawRecv, um *BackendMsg) (sids []uint32) {
 	route, sids, payload, opts := handlePushOrBroad(rec.Msg.Args)
 
 	if route == "" {

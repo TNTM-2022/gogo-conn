@@ -48,18 +48,18 @@ func handleReq(pomeloCoder *libPomeloCoder.Coder, buf []byte, sid uint32) packag
 	}
 }
 
-func handleSend(bmsg package_coder.BackendMsg) []byte {
+func handleSend(bMsg package_coder.BackendMsg) []byte {
 	var (
 		pkgType       int
 		buf           []byte
-		clientId      uint64
+		clientId      uint64 = bMsg.PkgID
 		mType         byte
 		compressRoute int
 		compressGzip  bool
-		isPush        bool
-	)
 
-	switch bmsg.MType {
+		isPush bool
+	)
+	switch bMsg.MType {
 	case libPomeloCoder.Message["TYPE_PUSH"]:
 		pkgType = libPomeloCoder.Package["TYPE_DATA"]
 		mType = libPomeloCoder.Message["TYPE_PUSH"]
@@ -68,19 +68,21 @@ func handleSend(bmsg package_coder.BackendMsg) []byte {
 		pkgType = libPomeloCoder.Package["TYPE_DATA"]
 		mType = libPomeloCoder.Message["TYPE_RESPONSE"]
 		isPush = false
+	default:
+		fmt.Println("多出来一个 mType", bMsg.MType)
 	}
 
 	// package decode 在 mqtt server 进行处理
 	// protobuf encode
-	if b, e := libProtobufCoder.JsonToPb(bmsg.Route, bmsg.Payload, isPush); b != nil && e == nil {
-		logger.DEBUG.Println(" json2bt转换成功-", bmsg.Route)
-		bmsg.Payload = b
+	if b, e := libProtobufCoder.JsonToPb(bMsg.Route, bMsg.Payload, isPush); b != nil && e == nil {
+		logger.DEBUG.Println(" json2bt转换成功-", bMsg.Route)
+		bMsg.Payload = b
 	} else {
-		logger.DEBUG.Println(" json2pb转换失败", bmsg.Route)
+		logger.DEBUG.Println(" json2pb转换失败", bMsg.Route)
 	}
 
 	// pomelo encode
-	buf = libPomeloCoder.MessageEncode(clientId, mType, compressRoute, bmsg.Route, bmsg.Payload, compressGzip)
+	buf = libPomeloCoder.MessageEncode(clientId, mType, compressRoute, bMsg.Route, bMsg.Payload, compressGzip)
 	buf = libPomeloCoder.PackageEncode(pkgType, buf)
 
 	return buf
@@ -145,7 +147,6 @@ func ws(c echo.Context) error {
 		for {
 			// Read
 			messageType, p, err := ws.ReadMessage()
-			fmt.Println("read message ** ", messageType, p, err)
 			if err != nil {
 				judgeWsConnError(err)
 				break

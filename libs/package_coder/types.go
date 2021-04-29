@@ -30,7 +30,7 @@ import (
 type Settings map[string]json.RawMessage
 
 type PayloadMsgArgs struct {
-	Id         int64           `json:"id,omitempty"`
+	Id         uint64          `json:"id,omitempty"`
 	Route      string          `json:"route,omitempty"`
 	Body       json.RawMessage `json:"body,omitempty"`
 	FrontendId string          `json:"frontendId,omitempty"`
@@ -63,7 +63,7 @@ type BackendMsg struct {
 	Route      string
 	ServerType string
 	Payload    []byte
-	PkgID      int64
+	PkgID      uint64
 	Sid        uint32
 	ServerId   string
 	Opts       json.RawMessage
@@ -77,7 +77,7 @@ type PkgBelong struct {
 	//UID         UserID // 这里不对， 没有鉴权 没有 uid， 只有sid
 	SID         uint32
 	StartAt     time.Time
-	ClientPkgID int64
+	ClientPkgID uint64
 	Route       string
 }
 
