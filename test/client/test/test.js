@@ -1,7 +1,7 @@
 const User = require('../user');
 
 void async function () {
-    const u = new User('127.0.0.1', 12345);
+    const u = new User('127.0.0.1', 23456);
     // const u = new User('127.0.0.1', 3050);
     console.log(1)
     await u.login();
