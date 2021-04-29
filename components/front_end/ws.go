@@ -191,13 +191,14 @@ func ws(c echo.Context) error {
 	return nil
 }
 
-func main() {
+func StartFrontServer() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
 	// Routes
 	e.GET("/ws", ws)
+
 	e.Any("/debug/pprof/", func(ctx echo.Context) error {
 		pprof.Index(ctx.Response().Writer, ctx.Request())
 		return nil

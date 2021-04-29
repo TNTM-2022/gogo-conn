@@ -42,19 +42,30 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 		sids, s := package_coder.DecodePush("", 0, b)
 
 		if len(sids) == 0 {
-			global.SidFrontChanStore.IterCb(func(k string, v interface{}) {
+			global.SidFrontChanStore.IterCb(func(sid string, v interface{}) {
 				if vv, ok := v.(chan package_coder.BackendMsg); ok {
-					vv <- *s
+					select {
+					case vv <- *s:
+					default:
+						log.Printf("cannot write in. %v", sid)
+					}
 				} else {
-					log.Printf("no sid chan ok")
+					log.Printf("no sid chan ok, %v", sid)
 				}
 			})
 		} else {
 			for sid := range sids {
-				fmt.Println(sid)
+				if v, ok := global.SidFrontChanStore.Get(strconv.FormatInt(int64(sid), 10)); ok {
+					if vv, ok := v.(chan package_coder.BackendMsg); ok {
+						select {
+						case vv <- *s:
+						default:
+							log.Printf("cannot write in. %v", sid)
+						}
+					}
+				}
 			}
 		}
-
 		// todo 消息找到user 进行分发s
 		logger.ERROR.Println("2222", s.Route)
 	})
