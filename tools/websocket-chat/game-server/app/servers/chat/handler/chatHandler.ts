@@ -17,7 +17,7 @@ export class ChatHandler {
            if (!channel.getMember(session.uid)) {
                channel.add(session.uid, session.frontendId)
            }
-            channel.pushMessage("push.push", {type: "push", is_broad: true}, {opts: true})
+            channel.pushMessage("push.push", {event1: "push.push", is_broad: true}, {opts: true})
         }, 0)
         return {
             code: 200,

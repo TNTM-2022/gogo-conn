@@ -90,7 +90,7 @@ function create() {
         var onmessage = function (event) {
             // console.log("event.data", event.data)
             const a = processPackage(Package.decode(event.data), cb);
-            console.log("event.data", Package.decode(event.data)?.body?.toString())
+            // console.log("event.data", Package.decode(event.data)?.body?.toString())
             // new package arrived, update the heartbeat timeout
             if (heartbeatTimeout) {
                 nextHeartbeatTimeout = Date.now() + heartbeatTimeout;
@@ -247,7 +247,7 @@ function create() {
 
     var handshake = function (data) {
         data = JSON.parse(Protocol.strdecode(data));
-        console.log(246, data);
+        // console.log(246, data);
         if (data.code === RES_OLD_CLIENT) {
             pomelo.emit('error', 'client version not fullfill');
             return;
@@ -274,6 +274,7 @@ function create() {
 
     var onData = function (data) {
         //probuff decode
+        console.log('on data', data.toString())
         var msg = Message.decode(data);
 
         if (msg.id > 0) {
@@ -392,7 +393,7 @@ function create() {
                     objects: true,
                     oneof: true
                 });
-                console.log(msg.body, (msg.body).toString(), o)
+                // console.log(msg.body, (msg.body).toString(), o)
                 return o;
             } else {
                 jsonCoder(isPush ? 'push' : 'resp', route, msg.body);

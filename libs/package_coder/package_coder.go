@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-connector/global"
+	"go-connector/libs/pomelo_coder"
 	"go-connector/logger"
 )
 
@@ -121,6 +122,7 @@ func DecodePush(topic string, messageID uint16, payload []byte) (uids []uint32, 
 	fmt.Println("pkgId", pkgId)
 	if rec.Msg.Args != nil {
 		um.Route, uids, um.Payload, um.Opts = handlePushOrBroad(rec.Msg.Args)
+		um.MType = pomelo_coder.Message["TYPE_PUSH"]
 		if um.Route == "" {
 			fmt.Println("no route; skip", uids)
 			return
@@ -150,7 +152,10 @@ func handlePushOrBroad(b []json.RawMessage) (route string, uids []uint32, cc jso
 			logger.ERROR.Println(err)
 		}
 	}
-	route = string(b[0])
+	if err := json.Unmarshal(b[0], &route); err != nil {
+		fmt.Println(err)
+		return
+	}
 	cc = b[1]
 	userOptions = handleType.UserOptions
 	return
