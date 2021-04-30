@@ -27,20 +27,13 @@ import (
 //	IP          string `json:"IP,omitempty"`
 //}
 
-type Settings map[string]json.RawMessage
-
 type PkgPayloadInfo struct {
 	PkgID uint64 `json:"id"`
 	Route string `json:"route"`
 	Body  json.RawMessage
 	IsBf  bool `json:"isBf,omitempty"` // 自定义添加的， 用来标识是不是透传 protobuf 给后端了
 }
-type Session struct {
-	Sid           uint64                     `json:"id"`
-	FrontServerId string                     `json:"frontendId"`
-	Uid           int32                      `json:"uid,omitempty"`
-	Settings      map[string]json.RawMessage `json:"settings"`
-}
+
 type PayloadMsg struct {
 	Namespace  string             `json:"namespace,omitempty"`
 	ServerType string             `json:"serverType,omitempty"`

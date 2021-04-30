@@ -14,7 +14,7 @@ type OnlineUserResp struct {
 }
 
 func MointorHandler(serverId string) (req, respBody, respErr, notify []byte) {
-	n := global.Sids.Count()
+	n := global.SessionsCount()
 	res := OnlineUserResp{
 		LoginedCount:   n,
 		TotalConnCount: n,

@@ -116,11 +116,17 @@ func ws(c echo.Context) error {
 
 	pomeloCoder := libPomeloCoder.InitCoder()
 	sid, ok := global.GetSid()
+	fmt.Println("sid>>>", sid, ok)
 	defer global.BackSid(sid)
 	if !ok {
 		return nil
 	}
 
+	session := global.CreateSession(sid)
+	if !session.Bind(12) {
+		fmt.Println("Bind userid error")
+		return nil
+	}
 	MsgFront := make(chan package_coder.BackendMsg, 100)
 	_sid := fmt.Sprintf("%v", sid)
 	//global.SidBackChanStore.Set(_sid, MsgBack)

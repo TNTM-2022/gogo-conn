@@ -3,6 +3,7 @@ package package_coder
 import (
 	"encoding/json"
 	"fmt"
+	"go-connector/global"
 	"go-connector/logger"
 )
 
@@ -20,15 +21,12 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 		Body:  u.Payload,
 	})
 
-	sessionSettings := map[string]json.RawMessage{ // 放到全局
-		"uid": json.RawMessage(`1`),
+	_session, ok := global.GetSessionBySid(u.Sid)
+	if !ok {
+		fmt.Println("no session found")
+		return nil
 	}
-	session, _ := json.Marshal(Session{ // 放到全局
-		Sid:           uint64(u.Sid), // sid
-		FrontServerId: u.FrontServerId,
-		Uid:           12, // userReq.UID, // uid 是bind 的， setting是 set 的结果
-		Settings:      sessionSettings,
-	})
+	session, _ := json.Marshal(_session)
 
 	m := &Payload{
 		Id: pkgId,
@@ -111,7 +109,7 @@ func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId uint64, u
 	return
 }
 
-func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, pkgId uint64, um *BackendMsg) {
+func DecodePush(topic string, messageID uint16, payload []byte) (uids []uint32, pkgId uint64, um *BackendMsg) {
 	var rec RawRecv
 	um = &BackendMsg{}
 
@@ -122,9 +120,9 @@ func DecodePush(topic string, messageID uint16, payload []byte) (sids []uint32, 
 	pkgId = rec.Id
 	fmt.Println("pkgId", pkgId)
 	if rec.Msg.Args != nil {
-		um.Route, sids, um.Payload, um.Opts = handlePushOrBroad(rec.Msg.Args)
+		um.Route, uids, um.Payload, um.Opts = handlePushOrBroad(rec.Msg.Args)
 		if um.Route == "" {
-			fmt.Println("no route; skip", sids)
+			fmt.Println("no route; skip", uids)
 			return
 		}
 	}
@@ -138,7 +136,7 @@ type MsgOptions struct {
 	IsBroadcast bool
 }
 
-func handlePushOrBroad(b []json.RawMessage) (route string, sids []uint32, cc json.RawMessage, userOptions json.RawMessage) {
+func handlePushOrBroad(b []json.RawMessage) (route string, uids []uint32, cc json.RawMessage, userOptions json.RawMessage) {
 	if len(b) < 3 {
 		return
 	}
@@ -148,7 +146,7 @@ func handlePushOrBroad(b []json.RawMessage) (route string, sids []uint32, cc jso
 		fmt.Println(e, b[len(b)-1])
 	}
 	if handleType.IsPush {
-		if err := json.Unmarshal(b[2], &sids); err != nil {
+		if err := json.Unmarshal(b[2], &uids); err != nil {
 			logger.ERROR.Println(err)
 		}
 	}

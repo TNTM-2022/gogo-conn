@@ -45,11 +45,11 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 	s.OnPublish(func(conn *mqtt.Conn, _ string, _ uint16, b []byte) {
 		logger.INFO.Println("server* ", string(b))
 		log.Println("server* ", string(b))
-		sids, pkgId, s := package_coder.DecodePush("", 0, b)
+		uids, pkgId, s := package_coder.DecodePush("", 0, b)
 		pkgIds, _ := json.Marshal([]reply{reply{Id: pkgId}})
 		conn.Reply(pkgIds)
-		fmt.Println(sids)
-		if len(sids) == 0 {
+		fmt.Println(uids)
+		if len(uids) == 0 {
 			global.SidFrontChanStore.IterCb(func(sid string, v interface{}) {
 				if vv, ok := v.(chan package_coder.BackendMsg); ok {
 					select {
@@ -62,8 +62,13 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 				}
 			})
 		} else {
-			for sid := range sids { // todo 后端传过来的全部是 uid， 需要根据 uid 传值
-				if sid < 1 {
+			for _, uid := range uids { // todo 后端传过来的全部是 uid， 需要根据 uid 传值
+				if uid < 1 {
+					continue
+				}
+				sid, ok := global.GetSidByUid(uid)
+				if !ok {
+					fmt.Println("no uid/sid found")
 					continue
 				}
 				if v, ok := global.SidFrontChanStore.Get(strconv.FormatInt(int64(sid), 10)); ok {
@@ -71,14 +76,14 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 						select {
 						case vv <- *s:
 						default:
-							log.Printf("cannot write in. %v", sid)
+							log.Printf("cannot write in. %v", uid)
 						}
 					}
 				}
 			}
 		}
 		// todo 消息找到user 进行分发s
-		log.Println("2222", s.Route, sids)
+		log.Println("2222", s.Route, uids)
 	})
 	<-ctx.Done()
 }
