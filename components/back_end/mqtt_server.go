@@ -39,16 +39,14 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 	if err != nil {
 		log.Panicln(err)
 	}
-	fmt.Print("test server start at ", s.Addr())
 	//s.OnSubscribe(handleSubscribe)
 	//s.OnUnSubscribe(handleUnSubscribe)
 	s.OnPublish(func(conn *mqtt.Conn, _ string, _ uint16, b []byte) {
 		logger.INFO.Println("server* ", string(b))
-		log.Println("server* ", string(b))
+		logger.DEBUG.Println("server* ", string(b))
 		uids, pkgId, s := package_coder.DecodePush("", 0, b)
 		pkgIds, _ := json.Marshal([]reply{reply{Id: pkgId}})
 		conn.Reply(pkgIds)
-		fmt.Println(uids)
 		if len(uids) == 0 {
 			global.SidFrontChanStore.IterCb(func(sid string, v interface{}) {
 				if vv, ok := v.(chan package_coder.BackendMsg); ok {
@@ -68,7 +66,7 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 				}
 				sid, ok := global.GetSidByUid(uid)
 				if !ok {
-					fmt.Println("no uid/sid found")
+					fmt.Printf("no uid/sid found; uid:%v", uid)
 					continue
 				}
 				if v, ok := global.SidFrontChanStore.Get(strconv.FormatInt(int64(sid), 10)); ok {
@@ -82,8 +80,6 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 				}
 			}
 		}
-		// todo 消息找到user 进行分发s
-		log.Println("2222", s.Route, uids)
 	})
 	<-ctx.Done()
 }

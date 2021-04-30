@@ -8,8 +8,6 @@ import (
 	"go-connector/logger"
 )
 
-var pkgId pkgIdType
-
 func Encode(pkgId int64, u *BackendMsg) []byte {
 	defer func() {
 		if r := recover(); r != nil {
@@ -75,7 +73,6 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 	//	},
 	//}
 	if j, e := json.Marshal(m); e == nil {
-		fmt.Println("......", string(j))
 		return j
 	}
 
@@ -99,7 +96,7 @@ func DecodeResp(topic string, messageID uint16, payload []byte) (pkgId uint64, u
 	var rec RawRecv
 	u = &BackendMsg{}
 	if e := json.Unmarshal(payload, &rec); e != nil {
-		fmt.Println(e)
+		fmt.Println("error :", e)
 	}
 	if rec.Resp != nil {
 		pkgId = rec.Id
@@ -114,12 +111,10 @@ func DecodePush(topic string, messageID uint16, payload []byte) (uids []uint32, 
 	var rec RawRecv
 	um = &BackendMsg{}
 
-	fmt.Println(string(payload))
 	if e := json.Unmarshal(payload, &rec); e != nil {
-		fmt.Println(e)
+		fmt.Println("err: ", e)
 	}
 	pkgId = rec.Id
-	fmt.Println("pkgId", pkgId)
 	if rec.Msg.Args != nil {
 		um.Route, uids, um.Payload, um.Opts = handlePushOrBroad(rec.Msg.Args)
 		um.MType = pomelo_coder.Message["TYPE_PUSH"]
@@ -145,7 +140,7 @@ func handlePushOrBroad(b []json.RawMessage) (route string, uids []uint32, cc jso
 
 	var handleType MsgOptions
 	if e := json.Unmarshal(b[len(b)-1], &handleType); e != nil {
-		fmt.Println(e, b[len(b)-1])
+		fmt.Println("error", e, b[len(b)-1])
 	}
 	if handleType.IsPush {
 		if err := json.Unmarshal(b[2], &uids); err != nil {
@@ -153,7 +148,7 @@ func handlePushOrBroad(b []json.RawMessage) (route string, uids []uint32, cc jso
 		}
 	}
 	if err := json.Unmarshal(b[0], &route); err != nil {
-		fmt.Println(err)
+		fmt.Println("error:", err)
 		return
 	}
 	cc = b[1]

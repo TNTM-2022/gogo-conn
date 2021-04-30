@@ -8,6 +8,7 @@ import (
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
+	"go-connector/logger"
 	"log"
 	"strings"
 	"sync"
@@ -29,7 +30,7 @@ func UpdateProto(path string) {
 	p := protoparse.Parser{}
 	fds, err := p.ParseFiles(path)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("err32", err)
 		return
 	}
 	fd := fds[0]
@@ -63,7 +64,7 @@ func getNamesace(p string) string {
 	//if len(s) !=3 {
 	//	return ""
 	//}
-	fmt.Println(s[0 : len(s)-1])
+	logger.DEBUG.Println("getNamespace", s[0:len(s)-1])
 	return strings.Join(s[0:len(s)-1], ".")
 }
 
@@ -80,11 +81,10 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 	}
 
 	if fd == nil {
-		fmt.Println("protobuf no fd", namespace, isPush)
+		logger.DEBUG.Println("protobuf no fd", namespace, isPush)
 		return nil, nil
 	}
-	log.Printf("json2pb; namespace=> %s; messageName=> %s", namespace, messageName)
-	fmt.Println(" jsonStr>> ", string(jsonStr))
+	log.Printf("json2pb; namespace=> %s; messageName=> %s", namespace, messageName, string(jsonStr))
 	msg := fd.FindMessage(messageName)
 	if msg == nil {
 		fmt.Println("no msg", messageName)
@@ -124,7 +124,6 @@ func PbToJson(messageName string, protoData []byte) ([]byte, error) {
 
 	namespace := getNamesace(messageName)
 	fd := globalReqProtoMap[namespace]
-	fmt.Println(namespace, "--==1", messageName)
 	if fd == nil {
 		return nil, nil
 	}
@@ -135,6 +134,5 @@ func PbToJson(messageName string, protoData []byte) ([]byte, error) {
 	err := proto.Unmarshal(protoData, dymsg)
 
 	jsonByte, err := dymsg.MarshalJSON()
-	fmt.Println(namespace, "--==1", messageName, dymsg)
 	return jsonByte, err
 }

@@ -64,7 +64,7 @@ func list() []byte {
 	if proc, err := process.NewProcess(int32(cfg.Pid)); err == nil {
 		mem, err := proc.MemoryInfo()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("error=> ", err)
 		}
 		var memStats runtime.MemStats
 		runtime.ReadMemStats(&memStats)
@@ -76,7 +76,7 @@ func list() []byte {
 
 	result, e := json.Marshal(monitInf)
 	if e != nil {
-		log.Println(e)
+		log.Println("e=> ", e)
 	}
 	return result
 }

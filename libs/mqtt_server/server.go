@@ -35,8 +35,8 @@ type Conn struct {
 func (c *Conn) Reply(b []byte) error {
 	buf := new(bytes.Buffer)
 	p := packets.PublishPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Publish}, Payload: b, TopicName: "rpc"}
-	writeConn(&p, c.conn)
-	fmt.Println(c.conn.Write(buf.Bytes()))
+	_ = writeConn(&p, c.conn)
+	_, _ = c.conn.Write(buf.Bytes())
 	return nil
 }
 
@@ -119,10 +119,9 @@ func (s *Server) New(addr string) error {
 		for {
 			conn, err := ln.Accept()
 			if err != nil {
-				fmt.Print(err)
+				fmt.Print("err=>", err)
 				// handle error
 			}
-			fmt.Println("~~~~~~~~~~~~~~~~~~~", conn.RemoteAddr())
 			go s.handleConnection(conn)
 		}
 	}()
@@ -132,15 +131,14 @@ func (s *Server) New(addr string) error {
 func (s *Server) handleConnection(conn net.Conn) {
 
 	defer func() {
-		fmt.Println("为啥关闭了?")
-		conn.Close()
+		fmt.Println("mqtt server closed", conn.Close())
+
 	}()
 
 	clientID, err := s.handleConnect(conn)
 	if err != nil {
 		return
 	}
-	fmt.Println("------ mqtt server")
 
 	for {
 		p, err := packets.ReadPacket(conn)
@@ -168,7 +166,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	}
 }
-func (s *Server) handleSubscribe(clientID string, p *packets.SubscribePacket, conn net.Conn) {
+func (s *Server) handleSubscribe(_ string, p *packets.SubscribePacket, conn net.Conn) {
 
 	for _, topic := range p.Topics {
 		s.subscribeMessages <- topic
@@ -177,26 +175,26 @@ func (s *Server) handleSubscribe(clientID string, p *packets.SubscribePacket, co
 	var ack = &packets.SubackPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Suback}}
 	ack.ReturnCodes = append(ack.ReturnCodes, p.Qoss...)
 
-	writeConn(ack, conn)
+	_ = writeConn(ack, conn)
 
 }
 func (s *Server) handleDisconnect(conn net.Conn) {
 	//todo : drop messages of public
-	conn.Close()
+	_ = conn.Close()
 }
 func (s *Server) handlePingreq(conn net.Conn) {
 	var ack = &packets.SubackPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Pingresp}}
-	writeConn(ack, conn)
+	_ = writeConn(ack, conn)
 }
-func (s *Server) handlePublish(clientID string, p *packets.PublishPacket, conn net.Conn) {
+func (s *Server) handlePublish(_ string, p *packets.PublishPacket, conn net.Conn) {
 	if s.onPublishHandle != nil {
 		go s.onPublishHandle(&Conn{conn}, p.TopicName, p.MessageID, p.Payload)
 	}
-	fmt.Println("--------------------- ", p.TopicName)
+
 	var ack = &packets.PubackPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Puback}}
-	writeConn(ack, conn)
+	_ = writeConn(ack, conn)
 }
-func (s *Server) handleUnSubscribe(clientID string, p *packets.UnsubscribePacket, conn net.Conn) {
+func (s *Server) handleUnSubscribe(_ string, p *packets.UnsubscribePacket, conn net.Conn) {
 
 	for _, topic := range p.Topics {
 		s.unsubscribeMessages <- topic
@@ -204,7 +202,7 @@ func (s *Server) handleUnSubscribe(clientID string, p *packets.UnsubscribePacket
 
 	var ack = &packets.SubackPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Unsuback}}
 
-	writeConn(ack, conn)
+	_ = writeConn(ack, conn)
 
 }
 func (s *Server) handleConnect(conn net.Conn) (id string, error error) {

@@ -23,31 +23,30 @@ func GetSessionBySid(sid uint32) (*sessionType, bool) {
 	}
 	return nil, false
 }
-func GetSessionByUid(uid uint32) (*sessionType, bool) {
-	_sid, ok := uidSid.Get(fmt.Sprintf("%v", uid))
-	if !ok {
-		return nil, false
-	}
-	sid, ok := _sid.(uint32)
-	if !ok {
-		return nil, false
-	}
-	if v, ok := sessions.Get(fmt.Sprintf("%v", sid)); ok {
-		if vv, ok := v.(*sessionType); ok {
-			return vv, ok
-		}
-	}
-	return nil, false
-}
+
+//func GetSessionByUid(uid uint32) (*sessionType, bool) {
+//	_sid, ok := uidSid.Get(fmt.Sprintf("%v", uid))
+//	if !ok {
+//		return nil, false
+//	}
+//	sid, ok := _sid.(uint32)
+//	if !ok {
+//		return nil, false
+//	}
+//	if v, ok := sessions.Get(fmt.Sprintf("%v", sid)); ok {
+//		if vv, ok := v.(*sessionType); ok {
+//			return vv, ok
+//		}
+//	}
+//	return nil, false
+//}
 
 func GetSidByUid(uid uint32) (uint32, bool) {
 	if v, ok := uidSid.Get(fmt.Sprintf("%v", uid)); ok {
 		if vv, ok := v.(uint32); ok {
-			fmt.Println("1", v)
 			return vv, true
 		}
 	}
-	fmt.Println("2")
 	return 0, false
 }
 
@@ -101,7 +100,7 @@ func (s *sessionType) Bind(uid uint32) bool {
 		return false
 	}
 	uidSid.Set(fmt.Sprintf("%v", uid), s.Sid)
-	fmt.Println(">>>>> ", fmt.Sprintf("%v", uid), fmt.Sprintf("%v", s.Sid))
+	//fmt.Println(">>>>> ", fmt.Sprintf("%v", uid), fmt.Sprintf("%v", s.Sid))
 	return true
 }
 

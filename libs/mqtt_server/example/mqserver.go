@@ -27,6 +27,6 @@ func handleUnSubscribe(m string) {
 	fmt.Println("test - unsub", m)
 }
 
-func handlePublish(m []byte) {
+func handlePublish(_ *mqtt.Conn, _ string, _ uint16, m []byte) {
 	fmt.Println("test - pub", m)
 }

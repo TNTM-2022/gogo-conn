@@ -6,13 +6,13 @@ void async function () {
     u.listen("push.push",d =>console.log(d.data))
     await u.login();
     // await u.talk('connector.entryHandler.enter', {rid: "1999", username: 'username'})
-    // for (let i = 0; i < 1000000; i++) {
-    //     let s = [];
-        // for (let j = 0; j < 100; j++) {
-        //     s.push(u.talk('chat.chatHandler.test', {name: 'test'}).catch(console.error))
-        // }
-        // await Promise.allSettled(s)
-    // }
+    for (let i = 0; i < 1000000; i++) {
+        let s = [];
+        for (let j = 0; j < 100; j++) {
+            s.push(u.talk('chat.chatHandler.test', {name: 'test'}).catch(console.error))
+        }
+        await Promise.allSettled(s)
+    }
     console.log(await u.talk('chat.chatHandler.test', {name: 'test'}));
     console.log(111)
 

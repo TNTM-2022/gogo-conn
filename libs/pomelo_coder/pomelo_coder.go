@@ -144,7 +144,7 @@ func (p *Coder) HandleKick(code int32, msg string, conn *websocket.Conn) {
 	}
 	b := PackageEncode(Package["TYPE_KICK"], r)
 	if err := conn.WriteMessage(websocket.BinaryMessage, b); err != nil {
-		fmt.Println(err)
+		fmt.Println("err:", err, code)
 		return
 	}
 }

@@ -11,12 +11,12 @@ import (
 	"strconv"
 )
 
-func Request(m *mqtt_client.MQTT, topic, moduleId string, reqId int64, msg []byte, cb interface{}) {
+func Request(m *mqtt_client.MQTT, topic, _ string, reqId int64, msg []byte, cb interface{}) {
 	m.Callbacks.Set(fmt.Sprintf("%v", reqId), cb)
 	m.Publish(topic, msg, 0, true)
 }
 
-func OnPublishHandler(m *mqtt_client.MQTT, client paho.Client, msg paho.Message) {
+func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 	pkgId, dpkg := package_coder.DecodeResp(msg.Topic(), msg.MessageID(), msg.Payload())
 	// todo 使用 pop 代替
 	m.Callbacks.RemoveCb(fmt.Sprintf("%v", pkgId), func(k string, v interface{}, exists bool) bool {
@@ -26,7 +26,6 @@ func OnPublishHandler(m *mqtt_client.MQTT, client paho.Client, msg paho.Message)
 			return false
 		}
 		if pkgBelong, ok := v.(*PkgBelong); ok {
-			fmt.Println(pkgBelong.SID, "receive a letter.", pkgBelong.Route, string(dpkg.Payload))
 			dpkg.Sid = pkgBelong.SID
 			dpkg.Route = pkgBelong.Route
 			dpkg.PkgID = pkgBelong.ClientPkgID

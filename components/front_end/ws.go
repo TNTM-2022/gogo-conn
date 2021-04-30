@@ -101,8 +101,7 @@ func judgeWsConnError(err error) {
 		return
 	}
 	if v, ok := err.(net.Error); ok {
-		fmt.Println("error net work")
-		fmt.Println(v.Timeout(), v.Temporary(), v.Error())
+		fmt.Println("error net work;", v.Timeout(), v.Temporary(), v.Error())
 		return
 	}
 }
@@ -116,7 +115,6 @@ func ws(c echo.Context) error {
 
 	pomeloCoder := libPomeloCoder.InitCoder()
 	sid, ok := global.GetSid()
-	fmt.Println("sid>>>", sid, ok)
 	defer global.BackSid(sid)
 	if !ok {
 		return nil
@@ -191,6 +189,7 @@ func ws(c echo.Context) error {
 						}
 					case libPomeloCoder.Package["TYPE_KICK"]:
 						fmt.Println("TYPE_KICK")
+
 						// todo 完善
 						return
 

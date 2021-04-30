@@ -55,7 +55,7 @@ func ConnectToServer(serv types.RegisterInfo) {
 		return
 	}
 
-	fmt.Println(serv)
+	fmt.Println("server =>", serv)
 
 	client := mqtt_client.CreateMQTTClient(&mqtt_client.MQTT{
 		Host:     serv.Host,
@@ -107,15 +107,15 @@ func ConnectToServer(serv types.RegisterInfo) {
 				forwardChan <- msg
 				return
 			}
-			log.Println("---------------")
+
 			Request(client, "rpc", "", pkgId, p, &PkgBelong{
 				SID:         msg.Sid,
 				StartAt:     time.Now(),
 				ClientPkgID: msg.PkgID,
 				Route:       msg.Route,
 			})
-			log.Println("===============")
-			log.Println("rpc send ok", client.ClientID)
+
+			logger.DEBUG.Println("rpc send ok", client.ClientID)
 		}
 	}(serv, client)
 

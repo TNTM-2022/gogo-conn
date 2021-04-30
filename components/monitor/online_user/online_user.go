@@ -22,7 +22,7 @@ func MointorHandler(serverId string) (req, respBody, respErr, notify []byte) {
 	}
 	notify, err := json.Marshal(res)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("err: ", err)
 	}
 	return
 }

@@ -3,7 +3,7 @@ package pomelo_coder
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"go-connector/logger"
 )
 
 // consts
@@ -252,10 +252,10 @@ func MessageDecode(b []byte) DecodedMsg {
 			routeBytes := make([]byte, routeLen)
 			copyArray(routeBytes, 0, b, offset, routeLen)
 			route = ProtocolStrDecode(routeBytes)
-			log.Println("router", route)
+			logger.DEBUG.Println("router", route)
 		} else {
 			route = ""
-			log.Println("router", "no")
+			logger.DEBUG.Println("router", "no")
 
 		}
 		offset += routeLen
@@ -267,7 +267,7 @@ func MessageDecode(b []byte) DecodedMsg {
 	var body = make([]byte, bodyLen)
 
 	copyArray(body, 0, b, offset, bodyLen)
-	fmt.Println("compressRoute", compressRoute, "mtype", int(mtype))
+	//fmt.Println("compressRoute", compressRoute, "mtype", int(mtype))
 	return DecodedMsg{
 		ID:            uint64(id), // 客户端发送过来的id
 		Type:          mtype,      // 请求类型
