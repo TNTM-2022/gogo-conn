@@ -274,7 +274,7 @@ function create() {
 
     var onData = function (data) {
         //probuff decode
-        console.log('on data', data.toString())
+        // console.log('on data', data.toString())
         var msg = Message.decode(data);
 
         if (msg.id > 0) {
@@ -354,7 +354,10 @@ function create() {
     var deCompose = function (msg) {
         var isPush = !(msg.id > 0);
         // var protos = !!pomelo.data.protos ? pomelo.data.protos.server : {};
-        var abbrs = pomelo.data.abbrs;
+        if (!pomelo.data || !pomelo.data.abbrs) {
+            console.log(msg)
+        }
+        var abbrs = pomelo.data?.abbrs || {};
         var route = msg.route;
 
         try {

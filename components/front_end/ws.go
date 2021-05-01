@@ -71,7 +71,8 @@ func handleSend(bMsg package_coder.BackendMsg) []byte {
 		mType = libPomeloCoder.Message["TYPE_RESPONSE"]
 		isPush = false
 	default:
-		fmt.Println("多出来一个 mType", bMsg.MType)
+		fmt.Println("多出来一个 mType", bMsg.MType, bMsg)
+		return nil
 	}
 
 	// package decode 在 mqtt server 进行处理
@@ -115,23 +116,34 @@ func ws(c echo.Context) error {
 
 	pomeloCoder := libPomeloCoder.InitCoder()
 	sid, ok := global.GetSid()
-	defer global.BackSid(sid)
 	if !ok {
 		return nil
 	}
+	defer global.BackSid(sid)
+	_sid := fmt.Sprintf("%v", sid)
 
 	session := global.CreateSession(sid)
-	if !session.Bind(12) {
+	if !session.Bind(sid) {
 		fmt.Println("Bind userid error")
 		return nil
 	}
+	defer session.Destroy()
+
 	MsgFront := make(chan package_coder.BackendMsg, 100)
-	_sid := fmt.Sprintf("%v", sid)
-	//global.SidBackChanStore.Set(_sid, MsgBack)
+	defer func() {
+		close(MsgFront)
+		for m := range MsgFront {
+			fmt.Println("msg lost;", m)
+		}
+	}()
 	global.SidFrontChanStore.Set(_sid, MsgFront)
 
+	_running := true
 	go func() {
-		for {
+		defer func() {
+			_running = false
+		}()
+		for _running {
 			// Write
 			select {
 			//case <-ctx.Done():
@@ -139,6 +151,9 @@ func ws(c echo.Context) error {
 			case bb := <-MsgFront:
 				{
 					b := handleSend(bb)
+					if b == nil {
+						return
+					}
 					//fmt.Println("msg push", string(b))
 					if err := ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
 						fmt.Println("msg push closed>>2", err)
@@ -150,7 +165,10 @@ func ws(c echo.Context) error {
 	}()
 
 	func() {
-		for {
+		defer func() {
+			_running = false
+		}()
+		for _running {
 			// Read
 			messageType, p, err := ws.ReadMessage()
 			if err != nil {
@@ -163,7 +181,7 @@ func ws(c echo.Context) error {
 					case libPomeloCoder.Package["TYPE_HANDSHAKE"]:
 						b := pomeloCoder.HandleHandshake()
 						if err := ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
-							fmt.Println("msg push closed>>2", err)
+							fmt.Println("msg push closed>>handshake", err)
 							return
 						}
 
@@ -220,6 +238,10 @@ func StartFrontServer() {
 	})
 	e.Any("/debug/pprof/profile", func(ctx echo.Context) error {
 		pprof.Profile(ctx.Response().Writer, ctx.Request())
+		return nil
+	})
+	e.Any("/debug/pprof/goroutine", func(ctx echo.Context) error {
+		pprof.Handler("goroutine").ServeHTTP(ctx.Response().Writer, ctx.Request())
 		return nil
 	})
 	e.Any("/debug/pprof/symbol", func(ctx echo.Context) error {

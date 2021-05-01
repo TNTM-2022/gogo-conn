@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-const UserCap = 10
+const UserCap = 100
 
 func init() {
 	for i := 1; i <= UserCap; i++ {
