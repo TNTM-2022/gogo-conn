@@ -8,8 +8,12 @@ import (
 	cfg "go-connector/config"
 	"go-connector/global"
 	"log"
+	"os"
 	"runtime"
+	"time"
 )
+
+const TIME_WAIT_MONITOR_KILL = 2 * 1000
 
 type MonitListInfoBody struct {
 	ServerID   string  `json:"serverId"`
@@ -20,6 +24,7 @@ type MonitListInfoBody struct {
 	HeapUsed   uint64  `json:"heapUsed"`
 	Uptime     float64 `json:"uptime"`
 }
+
 type MonitListInfo struct {
 	ServerID string            `json:"serverId"`
 	Body     MonitListInfoBody `json:"body"`
@@ -27,9 +32,17 @@ type MonitListInfo struct {
 
 func MonitorHandler(signal string, quitFn context.CancelFunc, blackList []string) (req, respBody, respErr, notify []byte) {
 	switch signal {
-	case "stop", "kill": // todo kill 有返回值
+	case "stop":
 		{
 			stop(quitFn)
+		}
+	case "kill":
+		{
+			respErr = []byte(*cfg.ServerID)
+			go func() {
+				time.Sleep(time.Second * TIME_WAIT_MONITOR_KILL)
+				os.Exit(0)
+			}()
 		}
 	case "list":
 		{

@@ -10,7 +10,7 @@ import (
 var (
 	_tmp            = ""
 	ProtoPath       = &_tmp
-	_serverid       = fmt.Sprintf("connector-%v", time.Now().Format("19900101-00:00:00"))
+	_serverid       = fmt.Sprintf("connector-%v", time.Now().Format("200601021504")) //奇葩， 必须是这个时间点
 	ServerID        = &_serverid
 	_serverType     = "connector"
 	ServerType      = &_serverType

@@ -34,12 +34,15 @@ type MQTT struct {
 
 	OnConnectCb func(mqtt *MQTT) //paho.OnConnectHandler
 	//OnPublishCb func(client paho.Client, msg paho.Message) // paho.MessageHandler
+	onReconnectCb func(mqtt *MQTT)
 
 	reqId       int64
 	reqIdLocker sync.Mutex
 	Callbacks   cmap.ConcurrentMap
 
 	connectedNum int
+	Closing      bool
+	ServerType   string
 }
 
 func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
@@ -88,7 +91,9 @@ func (m *MQTT) SetCallbacks(OnConnectCb func(mqtt *MQTT), OnPublishCb func(clien
 		m.OnConnectCb = OnConnectCb
 	}
 }
-
+func (m *MQTT) SetReconnectCb(f func(mqtt *MQTT)) {
+	m.onReconnectCb = f
+}
 func (m *MQTT) Stop() {
 	m.client.Disconnect(500)
 }
@@ -108,6 +113,9 @@ func (m *MQTT) Start() {
 
 func (m *MQTT) reconnectHandler(_ paho.Client, opts *paho.ClientOptions) {
 	fmt.Printf("reconnecting to %v server ....\n", opts.ClientID)
+	if m.onReconnectCb != nil {
+		m.onReconnectCb(m)
+	}
 }
 func (m *MQTT) connectionLostHandler(_ paho.Client, err error) {
 	log.Printf("MQTT client lost connection: %v", err)

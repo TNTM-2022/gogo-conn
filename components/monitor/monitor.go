@@ -26,7 +26,7 @@ func StartMonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync
 	client := mqtt.CreateMQTTClient(&mqtt.MQTT{
 		Host:            "127.0.0.1",
 		Port:            "3005",
-		ClientID:        "clientId-1",
+		ClientID:        fmt.Sprintf("monitor-%v", *cfg.ServerID),
 		SubscriptionQos: 1,
 		Persistent:      true,
 		Order:           true,
@@ -150,7 +150,7 @@ func reconnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 }
 
 func onPublishCb(mqttClient *mqtt.MQTT, m paho.Message) {
-	logger.INFO.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
+	log.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
 	switch m.Topic() {
 	case "register":
 		handleRegisterTopic(m)

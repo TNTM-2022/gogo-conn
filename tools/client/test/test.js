@@ -23,7 +23,7 @@ const User = require('../user');
 } // ().catch(console.error);
 
 void async function () {
-    for (let i = 0; i<15; i++ ) {
+    for (let i = 0; i<1; i++ ) {
         run(i)
     }
 }()

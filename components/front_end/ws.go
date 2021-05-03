@@ -201,13 +201,19 @@ func ws(c echo.Context) error {
 							serverType := strings.SplitN(backendMsg.Route, ".", 2)[0]
 							if v, ok := global.RemoteBackendTypeForwardChan.Get(serverType); ok {
 								if ch, ok := v.(chan package_coder.BackendMsg); ok {
-									ch <- backendMsg
+									select {
+									case ch <- backendMsg: // 会出现
+									default:
+										fmt.Println("写不进去")
+									}
 								}
+							} else {
+								// todo 请路径不存在, 增加全局 路径不存在拦截
+								fmt.Println("路径不存在")
 							}
 						}
 					case libPomeloCoder.Package["TYPE_KICK"]:
 						fmt.Println("TYPE_KICK")
-
 						// todo 完善
 						return
 

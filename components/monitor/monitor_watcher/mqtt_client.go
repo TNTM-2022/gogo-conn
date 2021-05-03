@@ -11,9 +11,13 @@ import (
 	"strconv"
 )
 
-func Request(m *mqtt_client.MQTT, topic, _ string, reqId int64, msg []byte, cb interface{}) {
+func Request(m *mqtt_client.MQTT, topic, _ string, reqId int64, msg []byte, cb interface{}) bool {
 	m.Callbacks.Set(fmt.Sprintf("%v", reqId), cb)
+	if !m.IsConnected() {
+		return false
+	}
 	m.Publish(topic, msg, 0, true)
+	return true
 }
 
 func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
