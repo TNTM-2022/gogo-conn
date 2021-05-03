@@ -41,8 +41,11 @@ type MQTT struct {
 	Callbacks   cmap.ConcurrentMap
 
 	connectedNum int
-	Closing      bool
-	ServerType   string
+	//Closing      bool
+	ServerType string
+	Quit       chan bool
+
+	t int
 }
 
 func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
@@ -75,7 +78,8 @@ func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
 // CreateMQTTClient creates a new MQTT client
 func CreateMQTTClient(mqttClient *MQTT) *MQTT {
 	mqttClient.Callbacks = cmap.New()
-
+	mqttClient.Quit = make(chan bool, 0)
+	mqttClient.t = time.Now().Second()
 	opts, err := initMQTTClientOps(mqttClient)
 	if err != nil {
 		log.Fatalf("unable to configure MQTT client: %s", err)
@@ -92,9 +96,15 @@ func (m *MQTT) SetCallbacks(OnConnectCb func(mqtt *MQTT), OnPublishCb func(clien
 	}
 }
 func (m *MQTT) SetReconnectCb(f func(mqtt *MQTT)) {
-	m.onReconnectCb = f
+	fmt.Println("set reconnect cb", m.ClientID)
+	if m.onReconnectCb == nil {
+		m.onReconnectCb = f
+	}
 }
-func (m *MQTT) Stop() {
+func (m *MQTT) Stop(t time.Duration) {
+	//m.Closing = true
+	close(m.Quit)
+	time.Sleep(t * time.Second)
 	m.client.Disconnect(500)
 }
 func (m *MQTT) Start() {
@@ -112,7 +122,7 @@ func (m *MQTT) Start() {
 }
 
 func (m *MQTT) reconnectHandler(_ paho.Client, opts *paho.ClientOptions) {
-	fmt.Printf("reconnecting to %v server ....\n", opts.ClientID)
+	fmt.Printf("reconnecting to %v server ... %v %v\n", opts.ClientID, time.Now().Second())
 	if m.onReconnectCb != nil {
 		m.onReconnectCb(m)
 	}
@@ -125,10 +135,11 @@ func (m *MQTT) IsReconnect() bool {
 	return m.connectedNum > 1
 }
 func (m *MQTT) IsConnected() bool {
-	return m.client.IsConnected()
+	//m.client.IsConnected()
+	return m.client.IsConnectionOpen()
 }
 func (m *MQTT) connectHandler(_ paho.Client) {
-	logger.DEBUG.Printf("MQTT client connected")
+	log.Printf("MQTT client connected. %v %v", m.ClientID, m.t)
 	m.connectedNum++
 	if m.OnConnectCb != nil {
 		m.OnConnectCb(m)

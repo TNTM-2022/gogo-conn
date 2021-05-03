@@ -22,6 +22,18 @@ type PkgBelong = package_coder.PkgBelong
 
 var servOptLocker sync.Mutex
 
+//func init() {
+//	go func() {
+//		t := time.Tick(time.Second * 5)
+//		for range t {
+//			fmt.Println(global.RemoteBackendClients.Keys())
+//			fmt.Println(global.RemoteBackendTypeForwardChan.Keys())
+//		}
+//	}()
+//}
+
+// todo 服务器相关操作 是不是需要单独开个 goroutine 进行操作呢？， 防止请求间隔太短以及锁没有顺序带来的潜在问题呢？ 排除因为报文前后顺序
+
 func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respErr, notify []byte) {
 	switch action {
 	case "addServer":
@@ -45,10 +57,7 @@ func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respEr
 		}
 	case "replaceServer": // master 启动后， 重新同步信息； 防止出现 同名 但是不同端口 之类的事情发生
 		fmt.Println("replace server .............")
-		for _, serv := range ss.Servers {
-			replaceServer(serv)
-
-		}
+		replaceServer(ss.Servers)
 		respErr = json.RawMessage(`1`)
 		//respBody = json.RawMessage(`1`)
 	case "startOver":
@@ -70,9 +79,11 @@ func removeServers(serverId string) {
 		return
 	}
 	serv := _serv.(*mqtt_client.MQTT)
-	serv.Closing = true
+	//serv.Closing = true
 	serv.SetReconnectCb(func(m *mqtt_client.MQTT) {
-		m.Stop()
+		fmt.Println("do reconnect cb", m.ClientID)
+
+		m.Stop(1)            // 都重连了， 没必要等待未处理完的报文
 		servOptLocker.Lock() // todo 最好移到 client 关闭回调里做， 那样 可以很好控制消息转发； 目前 只是停止转发后端， 至于断开，是由后端自行决定
 		defer servOptLocker.Unlock()
 		serverTypeAllClosed := true
@@ -98,7 +109,7 @@ func removeServers(serverId string) {
 				return true
 			})
 		}
-		fmt.Println("服务器 不重连", serverTypeAllClosed)
+		fmt.Println("服务器 不重连", serverTypeAllClosed, serverId)
 	})
 	fmt.Println("remove server ", serverId)
 }
@@ -120,66 +131,94 @@ func ConnectToServer(serv types.RegisterInfo) {
 	client.SetCallbacks(nil, func(c paho.Client, msg paho.Message) {
 		OnPublishHandler(client, c, msg)
 	})
-	client.Start()
 	//defer client.Stop()
-	log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnected())
 
 	// 初始化 serverType：chan  serverType：serverId：serverInfo
 	// todo 资源回收  如果撤掉了 * servertype 通道需要关闭
 	servOptLocker.Lock()
 	global.RemoteBackendTypeForwardChan.SetIfAbsent(serv.ServerType, make(chan package_coder.BackendMsg, 10000)) // 不用回收
 	global.RemoteBackendClients.Upsert(serv.ServerID, client, func(exists bool, oldV, newV interface{}) interface{} {
-		if v, ok := oldV.(*mqtt_client.MQTT); exists && ok {
-			go v.Stop()
-			fmt.Println("关闭？？？？")
-			// todo 停止消息转发， 然后再停止server client
+		if !exists {
+			return newV
 		}
+		oldServ, _ := oldV.(*mqtt_client.MQTT)
+		newServ, _ := newV.(*mqtt_client.MQTT)
+		if oldServ.Host == newServ.Host && oldServ.Port == newServ.Port && oldServ.ClientID == newServ.ClientID && oldServ.ServerType == newServ.ServerType {
+			fmt.Println("保持", oldServ.ClientID)
+			return oldV
+		}
+
+		v, _ := oldV.(*mqtt_client.MQTT)
+		go v.Stop(5)
+		fmt.Println("关闭？？？？", v.ClientID)
+		// todo 停止消息转发， 然后再停止server client
 		return newV
 	})
 	servOptLocker.Unlock()
 
 	go func(s types.RegisterInfo, client *mqtt_client.MQTT) {
+		client.Start()
+		log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnected())
 		_forwardChan, ok := global.RemoteBackendTypeForwardChan.Get(s.ServerType)
 		if !ok {
 			log.Println("no found server in store.")
 		}
 		forwardChan, _ := _forwardChan.(chan package_coder.BackendMsg)
 
-		for msg := range forwardChan {
-			if client.Closing {
-				forwardChan <- msg
-				fmt.Println("remote closing")
-				return
-			}
-			logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
-			pkgId := client.GetReqId()
-			p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
-			if p == nil {
-				log.Println("encoding skip...")
-				continue
-			}
+		for {
+			select {
+			case <-client.Quit:
+				{
+					fmt.Println("close loop")
+					return
+				}
+			case msg := <-forwardChan:
+				{
+					logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
+					pkgId := client.GetReqId()
+					p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
+					if p == nil {
+						log.Println("encoding skip...")
+						continue
+					}
 
-			if !client.IsConnected() { // 如果server 关闭了 消息要重新推回去
-				fmt.Printf("client.IsConnected() = %v", false)
-				forwardChan <- msg
-				return
-			}
+					if !client.IsConnected() { // 如果server 关闭了 消息要重新推回去
+						fmt.Printf("client.IsConnected() = %v", false)
+						forwardChan <- msg
+						return
+					}
 
-			if !Request(client, "rpc", "", pkgId, p, &PkgBelong{
-				SID:         msg.Sid,
-				StartAt:     time.Now(),
-				ClientPkgID: msg.PkgID,
-				Route:       msg.Route,
-			}) {
-				forwardChan <- msg
-				fmt.Println("remote closed.")
-				return
-			}
+					if !Request(client, "rpc", "", pkgId, p, &PkgBelong{
+						SID:         msg.Sid,
+						StartAt:     time.Now(),
+						ClientPkgID: msg.PkgID,
+						Route:       msg.Route,
+					}) {
+						forwardChan <- msg
+						fmt.Println("remote closed.")
+						return
+					}
 
-			logger.DEBUG.Println("rpc send ok", client.ClientID)
+					logger.DEBUG.Println("rpc send ok", client.ClientID)
+				}
+			}
 		}
 	}(serv, client)
 }
-func replaceServer(serv types.RegisterInfo) {
-	fmt.Println(serv.ServerID)
+func replaceServer(serv map[string]types.RegisterInfo) {
+	for i := range global.RemoteBackendClients.IterBuffered() {
+		oldServ := i.Val.(*mqtt_client.MQTT)
+		if newServ, ok := serv[i.Key]; ok {
+			ConnectToServer(newServ)
+		} else {
+			fmt.Println("连上了？1", oldServ.ClientID)
+			if oldServ.IsConnected() {
+				fmt.Println("连上了？2", oldServ.ClientID)
+				break
+			}
+			removeServers(oldServ.ClientID)
+		}
+		fmt.Println(i)
+	}
+	fmt.Println("replace server done")
 }

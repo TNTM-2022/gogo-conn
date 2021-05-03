@@ -150,7 +150,7 @@ func reconnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 }
 
 func onPublishCb(mqttClient *mqtt.MQTT, m paho.Message) {
-	log.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
+	logger.DEBUG.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
 	switch m.Topic() {
 	case "register":
 		handleRegisterTopic(m)
