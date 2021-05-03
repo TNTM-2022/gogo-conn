@@ -82,7 +82,7 @@ func OnPublishHandler(m *mqtt_client.MQTT, client paho.Client, msg paho.Message)
 					return false
 				}
 				if fn, ok := v.(mqtt_client.CallBack); ok {
-					fn(mm.Error, mm.Body)
+					go fn(mm.Error, mm.Body)
 				} else {
 					log.Println("callback fn error, %v, %v", v, respId)
 				}

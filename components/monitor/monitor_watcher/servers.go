@@ -45,6 +45,10 @@ func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respEr
 		}
 	case "replaceServer": // master 启动后， 重新同步信息； 防止出现 同名 但是不同端口 之类的事情发生
 		fmt.Println("replace server .............")
+		for _, serv := range ss.Servers {
+			replaceServer(serv)
+
+		}
 		respErr = json.RawMessage(`1`)
 		//respBody = json.RawMessage(`1`)
 	case "startOver":
@@ -55,18 +59,6 @@ func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respEr
 	return
 }
 func removeServers(serverId string) {
-	//global.RemoteBackendTypeForwardChan.SetIfAbsent(serv.ServerType, make(chan package_coder.BackendMsg, 10000))
-	//global.RemoteBackendClients.SetIfAbsent(serv.ServerType, concurrentMap.New())
-	//_cmp, _ := global.RemoteBackendClients.Get(serv.ServerType) // 一定存在
-	//cmp, _ := _cmp.(concurrentMap.ConcurrentMap)
-	//cmp.Upsert(serv.ServerID, client, func(exists bool, oldV, newV interface{}) interface{} {
-	//	if v, ok := oldV.(*mqtt_client.MQTT); exists && ok {
-	//		v.Stop()
-	//		fmt.Println("关闭？？？？")
-	//		// todo 停止消息转发， 然后再停止server client
-	//	}
-	//	return newV
-	//})
 	var _serv interface{}
 	if !global.RemoteBackendClients.RemoveCb(serverId, func(key string, v interface{}, exists bool) bool {
 		if !exists {
@@ -136,10 +128,6 @@ func ConnectToServer(serv types.RegisterInfo) {
 	// todo 资源回收  如果撤掉了 * servertype 通道需要关闭
 	servOptLocker.Lock()
 	global.RemoteBackendTypeForwardChan.SetIfAbsent(serv.ServerType, make(chan package_coder.BackendMsg, 10000)) // 不用回收
-	//global.RemoteBackendClients.SetIfAbsent(serv.ServerType, concurrentMap.New())
-	//_cmp, _ := global.RemoteBackendClients.Get(serv.ServerType) // 一定存在
-	//cmp, _ := _cmp.(concurrentMap.ConcurrentMap)
-	//cmp.Upsert(serv.ServerID, client, func(exists bool, oldV, newV interface{}) interface{} {
 	global.RemoteBackendClients.Upsert(serv.ServerID, client, func(exists bool, oldV, newV interface{}) interface{} {
 		if v, ok := oldV.(*mqtt_client.MQTT); exists && ok {
 			go v.Stop()
@@ -191,8 +179,7 @@ func ConnectToServer(serv types.RegisterInfo) {
 			logger.DEBUG.Println("rpc send ok", client.ClientID)
 		}
 	}(serv, client)
-
-	//time.Sleep(time.Second * 100)
-	//return nil
-	//todo 卡住 不要结束
+}
+func replaceServer(serv types.RegisterInfo) {
+	fmt.Println(serv.ServerID)
 }

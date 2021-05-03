@@ -22,11 +22,12 @@ type RegisterInfo struct {
 }
 
 type MonitorBody struct {
-	Signal    string       `json:"signal"`
-	Action    string       `json:"action"`
-	Server    RegisterInfo `json:"server"`
-	ServerID  string       `json:"id"`
-	BlackList []string     `json:"blacklist"`
+	Signal    string                  `json:"signal"`
+	Action    string                  `json:"action"`
+	Server    RegisterInfo            `json:"server"`
+	ServerID  string                  `json:"id"`
+	BlackList []string                `json:"blacklist"`
+	Servers   map[string]RegisterInfo `json:"servers"`
 }
 type Monitor struct {
 	RespId   int64       `json:"respId"`

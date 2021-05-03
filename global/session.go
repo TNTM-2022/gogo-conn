@@ -14,6 +14,9 @@ var uidSid = concurrentMap.New()   // uid >> sid  修改 后端推送 问题
 func SessionsCount() int {
 	return sessions.Count()
 }
+func UidCount() int {
+	return uidSid.Count()
+}
 
 func GetSessionBySid(sid uint32) (*sessionType, bool) {
 	if v, ok := sessions.Get(fmt.Sprintf("%v", sid)); ok {

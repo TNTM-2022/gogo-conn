@@ -14,10 +14,9 @@ type OnlineUserResp struct {
 }
 
 func MointorHandler(serverId string) (req, respBody, respErr, notify []byte) {
-	n := global.SessionsCount()
 	res := OnlineUserResp{
-		LoginedCount:   n,
-		TotalConnCount: n,
+		LoginedCount:   global.UidCount(),
+		TotalConnCount: global.SessionsCount(),
 		ServerId:       serverId,
 	}
 	notify, err := json.Marshal(res)
