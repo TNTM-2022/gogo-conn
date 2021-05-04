@@ -287,6 +287,7 @@ function create() {
         if (!(msg.id > 0) && msg.route.startsWith('_.')) {
             msg.route = msg.route.slice(2);
         }
+        console.log(msg)
         msg.body = deCompose(msg);
 
         processMessage(pomelo, msg);

@@ -1,6 +1,7 @@
 package monitor_watcher
 
 import (
+	"encoding/json"
 	"fmt"
 	paho "github.com/eclipse/paho.mqtt.golang"
 	"go-connector/global"
@@ -21,7 +22,12 @@ func Request(m *mqtt_client.MQTT, topic, _ string, reqId int64, msg []byte, cb i
 }
 
 func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
-	pkgId, dpkg := package_coder.DecodeResp(msg.Topic(), msg.MessageID(), msg.Payload())
+	var rec package_coder.RawRecv
+	if e := json.Unmarshal(msg.Payload(), &rec); e != nil {
+		fmt.Println("error ::", e)
+		return
+	}
+	pkgId, dpkg := decodeResp(msg.Topic(), msg.MessageID(), &rec)
 	// todo 使用 pop 代替
 	m.Callbacks.RemoveCb(fmt.Sprintf("%v", pkgId), func(k string, v interface{}, exists bool) bool {
 		// k: pkgId; v 存储的这个包相关信息
@@ -48,4 +54,15 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 		}
 		return true
 	})
+}
+
+func decodeResp(_ string, _ uint16, rec *package_coder.RawRecv) (pkgId uint64, u *BackendMsg) {
+	u = &BackendMsg{}
+	if rec.Resp != nil {
+		pkgId = rec.Id
+		if len(rec.Resp) >= 2 && rec.Resp[1] != nil {
+			u.Payload = rec.Resp[1]
+		}
+	}
+	return
 }

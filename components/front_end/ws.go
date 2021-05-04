@@ -51,6 +51,9 @@ func handleReq(pomeloCoder *libPomeloCoder.Coder, buf []byte, sid uint32) packag
 }
 
 func handleSend(bMsg package_coder.BackendMsg) []byte {
+	if bMsg.Route == "" {
+		return nil
+	}
 	var (
 		pkgType       int
 		buf           []byte
@@ -137,7 +140,7 @@ func ws(c echo.Context) error {
 		}
 	}()
 	global.SidFrontChanStore.Set(_sid, MsgFront)
-
+	defer global.SidFrontChanStore.Remove(_sid)
 	_running := true
 	go func() {
 		defer func() {

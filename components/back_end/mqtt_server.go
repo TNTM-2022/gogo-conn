@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go-connector/components/back_end/channel"
+	"go-connector/components/back_end/session"
 	"go-connector/config"
-	"go-connector/global"
 	mqtt "go-connector/libs/mqtt_server"
 	"go-connector/libs/package_coder"
 	"go-connector/logger"
@@ -26,8 +27,21 @@ func init() {
 
 type reply struct {
 	Id uint64 `json:"id"`
+	//Resp json.RawMessage `json:"resp"`
 }
 
+func replyResponse(conn *mqtt.Conn, pkgId uint64, error string) {
+	fmt.Println(error)
+	r := reply{
+		Id: pkgId,
+	}
+	pkgIds, err := json.Marshal(r)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("reply", pkgId, error, string(pkgIds))
+	_ = conn.Reply(pkgIds)
+}
 func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGroup) {
 	defer f()
 	defer wg.Done()
@@ -42,44 +56,43 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 	//s.OnSubscribe(handleSubscribe)
 	//s.OnUnSubscribe(handleUnSubscribe)
 	s.OnPublish(func(conn *mqtt.Conn, _ string, _ uint16, b []byte) {
-		logger.INFO.Println("server* ", string(b))
+		log.Println("server* ", string(b))
 		logger.DEBUG.Println("server* ", string(b))
-		uids, pkgId, s := package_coder.DecodePush("", 0, b)
-		pkgIds, _ := json.Marshal([]reply{reply{Id: pkgId}})
-		conn.Reply(pkgIds)
-		if len(uids) == 0 {
-			global.SidFrontChanStore.IterCb(func(sid string, v interface{}) {
-				if vv, ok := v.(chan package_coder.BackendMsg); ok {
-					select {
-					case vv <- *s:
-					default:
-						log.Printf("cannot write in. %v", sid)
-					}
-				} else {
-					log.Printf("no sid chan ok, %v", sid)
-				}
-			})
-		} else {
-			for _, uid := range uids { // todo 后端传过来的全部是 uid， 需要根据 uid 传值
-				if uid < 1 {
-					continue
-				}
-				sid, ok := global.GetSidByUid(uid)
-				if !ok {
-					fmt.Printf("no uid/sid found; uid:%v", uid)
-					continue
-				}
-				if v, ok := global.SidFrontChanStore.Get(strconv.FormatInt(int64(sid), 10)); ok {
-					if vv, ok := v.(chan package_coder.BackendMsg); ok {
-						select {
-						case vv <- *s:
-						default:
-							log.Printf("cannot write in. %v", uid)
-						}
-					}
+
+		var rec package_coder.RawRecv
+		if e := json.Unmarshal(b, &rec); e != nil {
+			fmt.Println("err: ", e)
+			return
+		}
+
+		switch rec.Msg.Service {
+		case "channelRemote":
+			switch rec.Msg.Method {
+			case "pushMessage":
+				{
+					pkgId, error := channel.PushMessage(&rec)
+					replyResponse(conn, pkgId, error)
+					fmt.Println("push message")
+					return
 				}
 			}
+
+		case "sessionRemote":
+			switch rec.Msg.Method {
+			case "pushAll":
+				{
+					pkgId, error := session.PushAll(&rec)
+					replyResponse(conn, pkgId, error)
+					fmt.Println("push all ")
+					return
+				}
+			}
+		default:
+			{
+
+			}
 		}
+		fmt.Println("module not implemented")
 	})
 	<-ctx.Done()
 }

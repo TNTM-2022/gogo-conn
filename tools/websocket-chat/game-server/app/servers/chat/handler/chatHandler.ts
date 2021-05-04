@@ -8,17 +8,29 @@ export class ChatHandler {
     constructor(private app: Application) {
     }
 
-    async test(msg, session) {
-        setTimeout(() => {
+    async test(msg, session: BackendSession) {
+        {
+            console.log('push message 1')
             let channelService = this.app.get('channelService');
             channelService.createChannel("test123")
             // channelService.broadcast("connector", "broadcast.test", {isPush: true})
             let channel = channelService.getChannel("test123", false)
-           if (!channel.getMember(session.uid)) {
-               channel.add(session.uid, session.frontendId)
-           }
-            channel.pushMessage("push.push", {event1: "push.push", is_broad: true}, {opts: true})
-        }, 0)
+            if (!channel.getMember(session.uid)) {
+                channel.add(session.uid, session.frontendId)
+            }
+            await channel.apushMessage("push.push", {event1: "push.push", is_broad: true}, {opts: true})
+            console.log('push message 2')
+        }
+
+        {
+            console.log('session set 1')
+            console.log(typeof session.get('a'), typeof session.get('b'), typeof session.get('c'), session.settings)
+            session.set("b", 1234)
+            session.set("c", false)
+            await session.apushAll()
+            console.log('session set 2')
+        }
+
         return {
             code: 200,
             name: 'test',

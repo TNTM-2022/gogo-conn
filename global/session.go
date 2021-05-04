@@ -74,14 +74,14 @@ type SessionInterface interface {
 	Bind(uint32) bool
 	Unbind()
 	Destroy()
-	Set(string, json.RawMessage)
+	Set(map[string]json.RawMessage)
 	Unset(string)
 }
 type sessionType struct {
 	Sid           uint32          `json:"id"`
 	FrontServerId string          `json:"frontendId"`
 	Uid           uint32          `json:"uid,omitempty"`
-	Settings      SessionSettings `json:"settings,omitempty"`
+	Settings      SessionSettings `json:"settings"`
 }
 
 func CreateSession(sid uint32) SessionInterface {
@@ -89,7 +89,8 @@ func CreateSession(sid uint32) SessionInterface {
 		Sid:           sid,
 		FrontServerId: *config.ServerID,
 		Settings: SessionSettings{
-			locker: &sync.RWMutex{},
+			locker:   &sync.RWMutex{},
+			settings: make(map[string]json.RawMessage),
 		},
 	}
 	sessions.Set(fmt.Sprintf("%v", sid), s)
@@ -126,13 +127,19 @@ func (s *sessionType) Destroy() {
 	sessions.Remove(fmt.Sprintf("%v", s.Sid))
 }
 
-func (s *sessionType) Set(k string, v json.RawMessage) {
+func (s *sessionType) Set(m map[string]json.RawMessage) {
 	s.Settings.locker.Lock()
-	s.Settings.settings[k] = v
+	for k, v := range m {
+		s.Settings.settings[k] = v
+	}
 	s.Settings.locker.Unlock()
 }
 func (s *sessionType) Unset(k string) {
 	s.Settings.locker.Lock()
 	defer s.Settings.locker.Unlock()
 	delete(s.Settings.settings, k)
+}
+
+func DecodeSessionPush() {
+
 }
