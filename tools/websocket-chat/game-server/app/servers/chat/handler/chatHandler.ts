@@ -25,8 +25,10 @@ export class ChatHandler {
         {
             console.log('session set 1')
             console.log(typeof session.get('a'), typeof session.get('b'), typeof session.get('c'), session.settings)
+            session.set("a", "s1234")
             session.set("b", 1234)
             session.set("c", false)
+            await session.apush("a")
             await session.apushAll()
             console.log('session set 2')
         }

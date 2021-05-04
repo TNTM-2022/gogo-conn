@@ -70,8 +70,8 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 			switch rec.Msg.Method {
 			case "pushMessage":
 				{
-					pkgId, error := channel.PushMessage(&rec)
-					replyResponse(conn, pkgId, error)
+					pkgId, err := channel.PushMessage(&rec)
+					replyResponse(conn, pkgId, err)
 					fmt.Println("push message")
 					return
 				}
@@ -81,9 +81,18 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 			switch rec.Msg.Method {
 			case "pushAll":
 				{
-					pkgId, error := session.PushAll(&rec)
-					replyResponse(conn, pkgId, error)
-					fmt.Println("push all ")
+					pkgId, userId, settings := session.DecodePushAll(&rec)
+					err := session.DoSave(userId, settings)
+					replyResponse(conn, pkgId, err)
+					fmt.Println("push all... ")
+					return
+				}
+			case "push":
+				{
+					pkgId, userId, settings := session.DecodePush(&rec)
+					err := session.DoSave(userId, settings)
+					replyResponse(conn, pkgId, err)
+					fmt.Println("push... ")
 					return
 				}
 			}
