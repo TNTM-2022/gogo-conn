@@ -189,7 +189,6 @@ func handleRegisterTopic(m paho.Message) {
 
 func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 	monit := DecodeMonitor(m.Payload())
-	// ignoreModuleLog:= make()
 	ignoreModuleLog := map[string]bool{
 		"onlineUser":  false,
 		"systemInfo":  false,
@@ -215,7 +214,7 @@ func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 
 	case "__monitorwatcher__":
 		{
-			req, respBody, respErr, notify = monitor_watcher.MonitorHandler(monit.Body.Action, &monit.Body)
+			req, respBody, respErr, notify = monitor_watcher.MonitorHandler(monit.Body.Action, monit.Body)
 		}
 	//case "RestartNotifyModule":
 	//	{

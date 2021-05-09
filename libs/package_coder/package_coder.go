@@ -29,7 +29,7 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 		Id: pkgId,
 		Msg: PayloadMsg{
 			Namespace:  "sys",
-			ServerType: u.ServerType, // todo 确认 是 本server 还是目标server
+			ServerType: u.ServerType, // 远程 server type // todo 确认 是 本server 还是目标server
 			Service:    "msgRemote",
 			Method:     "forwardMessage",
 			Args: [2]json.RawMessage{

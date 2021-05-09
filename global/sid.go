@@ -64,6 +64,7 @@ func GetSid() (sid uint32, ok bool) {
 	sidsHead.locker.Lock()
 	defer sidsHead.locker.Unlock()
 	if sidsHead.start == nil {
+		sidsHead.end = nil
 		return
 	}
 	sidsHead.len--

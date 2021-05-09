@@ -139,7 +139,3 @@ func (s *sessionType) Unset(k string) {
 	defer s.Settings.locker.Unlock()
 	delete(s.Settings.settings, k)
 }
-
-func DecodeSessionPush() {
-
-}

@@ -66,7 +66,7 @@ func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
 	opts.SetKeepAlive(time.Duration(client.KeepAliveSec) * time.Second)
 	opts.SetPingTimeout(time.Duration(client.PingTimeoutSec) * time.Second)
 	opts.SetAutoReconnect(true)
-	opts.SetMaxReconnectInterval(time.Second * 2)
+	opts.SetMaxReconnectInterval(time.Second * 3)
 
 	//opts.SetDefaultPublishHandler(client.publishHandler)
 	opts.SetOnConnectHandler(client.connectHandler)
@@ -103,9 +103,11 @@ func (m *MQTT) SetReconnectCb(f func(mqtt *MQTT)) {
 }
 func (m *MQTT) Stop(t time.Duration) {
 	//m.Closing = true
+	fmt.Println("close", m.ClientID)
 	close(m.Quit)
-	time.Sleep(t * time.Second)
-	m.client.Disconnect(500)
+	time.Sleep(t)
+	m.client.Disconnect(1)
+	defer fmt.Printf("disconnect= %v", m.ClientID)
 }
 func (m *MQTT) Start() {
 	pahoClient := paho.NewClient(m.clientOpts)
@@ -122,7 +124,7 @@ func (m *MQTT) Start() {
 }
 
 func (m *MQTT) reconnectHandler(_ paho.Client, opts *paho.ClientOptions) {
-	fmt.Printf("reconnecting to %v server ... %v %v\n", opts.ClientID, time.Now().Second())
+	fmt.Printf("reconnecting to %v server ... %v %v\n", opts.ClientID, time.Now().Second(), m.IsConnected())
 	if m.onReconnectCb != nil {
 		m.onReconnectCb(m)
 	}
@@ -135,7 +137,6 @@ func (m *MQTT) IsReconnect() bool {
 	return m.connectedNum > 1
 }
 func (m *MQTT) IsConnected() bool {
-	//m.client.IsConnected()
 	return m.client.IsConnectionOpen()
 }
 func (m *MQTT) connectHandler(_ paho.Client) {
@@ -165,51 +166,3 @@ func (m *MQTT) GetReqId() int64 {
 	}
 	return m.reqId
 }
-
-//func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
-//	if m.OnPublishCb == nil {
-//		return
-//	}
-//	m.OnPublishCb(client, msg)
-//}
-
-//func (m *MQTT) publishHandler(client paho.Client, msg paho.Message) {
-//	if msg.Topic() == "monitor" {
-//		var mm struct {
-//			RespId int64           `json:"respId"`
-//			Body   json.RawMessage `json:"body"`
-//			Error  string          `json:"error"`
-//		}
-//		var ss string
-//		d := msg.Payload()
-//		if e := json.Unmarshal(d, &ss); e == nil {
-//			d = []byte(ss)
-//		}
-//		if e := json.Unmarshal(d, &mm); e != nil {
-//			logger.ERROR.Println(mm, e)
-//		}
-//		if mm.RespId > 0 {
-//			respId := fmt.Sprintf("%v", mm.RespId)
-//			if m.Callbacks.RemoveCb(respId, func(key string, v interface{}, exists bool) bool {
-//				if !exists {
-//					return false
-//				}
-//				if fn, ok := v.(CallBack); ok {
-//					fn(mm.Error, mm.Body)
-//				} else {
-//					log.Println("callback fn error")
-//				}
-//				return true
-//			}) {
-//				return
-//			} else {
-//				logger.ERROR.Printf("unknown respId = %v", mm.RespId)
-//			}
-//		}
-//	}
-//
-//	logger.INFO.Println(msg)
-//	if m.OnPublishCb != nil {
-//		go m.OnPublishCb(m, msg)
-//	}
-//}

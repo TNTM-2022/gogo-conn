@@ -11,6 +11,7 @@ import (
 	"go-connector/libs/package_coder"
 	"go-connector/logger"
 	"log"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -21,6 +22,22 @@ type PkgBelong = package_coder.PkgBelong
 //var serverOptLocker sync.Mutex
 
 var servOptLocker sync.Mutex
+
+var LP TaskLoop
+
+func init() {
+	LP = CreateTaskLoop()
+	go LP.Run(func(v interface{}) interface{} {
+		f, ok := v.(func())
+		if !ok {
+			fmt.Println("wrong func param type", reflect.TypeOf(v))
+		}
+		if f != nil {
+			f()
+		}
+		return nil
+	})
+}
 
 //func init() {
 //	go func() {
@@ -34,24 +51,25 @@ var servOptLocker sync.Mutex
 
 // todo 服务器相关操作 是不是需要单独开个 goroutine 进行操作呢？， 防止请求间隔太短以及锁没有顺序带来的潜在问题呢？ 排除因为报文前后顺序
 
-func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respErr, notify []byte) {
+func MonitorHandler(action string, ss types.MonitorBody) (req, respBody, respErr, notify []byte) {
 	switch action {
 	case "addServer":
 		{
-			fmt.Println("add server .............")
+			fmt.Println("add server >>>>")
 			ConnectToServer(ss.Server)
+			fmt.Println("add server  <<<<<")
 			respErr = json.RawMessage(`1`)
 		}
 	case "removeServer":
 		{
-			fmt.Println(*ss)
+			fmt.Println(ss)
 			if ss.ServerID == "" {
 				respErr = json.RawMessage(`0`)
 				respBody = json.RawMessage(`0`)
 				return
 			}
 			fmt.Println("remove server .............")
-			removeServers(ss.ServerID)
+			removeServer(ss.ServerID)
 			respErr = json.RawMessage(`1`)
 			respBody = json.RawMessage(`1`)
 		}
@@ -67,7 +85,19 @@ func MonitorHandler(action string, ss *types.MonitorBody) (req, respBody, respEr
 	}
 	return
 }
-func removeServers(serverId string) {
+
+func removeServer(serverId string) {
+	//<-LP.Push(func() {
+	//	fmt.Println("test", serverId)
+	//})
+	<-LP.Push(func() {
+		//fmt.Println("del >>>>>", serverId)
+		del(serverId)
+		//fmt.Println("del <<<<<", serverId)
+	})
+}
+
+func del(serverId string) {
 	var _serv interface{}
 	if !global.RemoteBackendClients.RemoveCb(serverId, func(key string, v interface{}, exists bool) bool {
 		if !exists {
@@ -76,6 +106,7 @@ func removeServers(serverId string) {
 		_serv = v
 		return true
 	}) {
+		fmt.Println("no exists server info")
 		return
 	}
 	serv := _serv.(*mqtt_client.MQTT)
@@ -113,7 +144,16 @@ func removeServers(serverId string) {
 	})
 	fmt.Println("remove server ", serverId)
 }
+
 func ConnectToServer(serv types.RegisterInfo) {
+	<-LP.Push(func() {
+		//fmt.Println("add >>>>>")
+		add(serv)
+		//fmt.Println("add <<<<<")
+	})
+}
+
+func add(serv types.RegisterInfo) {
 	if *config.ServerType == serv.ServerType {
 		log.Println("skip init same type server", serv.ServerID)
 		return
@@ -174,6 +214,9 @@ func ConnectToServer(serv types.RegisterInfo) {
 				}
 			case msg := <-forwardChan:
 				{
+					if msg.Sid == 0 {
+						continue
+					}
 					logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
 					pkgId := client.GetReqId()
 					p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
@@ -216,7 +259,7 @@ func replaceServer(serv map[string]types.RegisterInfo) {
 				fmt.Println("连上了？2", oldServ.ClientID)
 				break
 			}
-			removeServers(oldServ.ClientID)
+			removeServer(oldServ.ClientID)
 		}
 		fmt.Println(i)
 	}
