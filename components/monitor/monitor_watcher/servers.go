@@ -39,15 +39,15 @@ func init() {
 	})
 }
 
-//func init() {
-//	go func() {
-//		t := time.Tick(time.Second * 5)
-//		for range t {
-//			fmt.Println(global.RemoteBackendClients.Keys())
-//			fmt.Println(global.RemoteBackendTypeForwardChan.Keys())
-//		}
-//	}()
-//}
+func init() {
+	go func() {
+		t := time.Tick(time.Second * 5)
+		for range t {
+			fmt.Println(global.RemoteBackendClients.Keys())
+			fmt.Println(global.RemoteBackendTypeForwardChan.Keys())
+		}
+	}()
+}
 
 // todo 服务器相关操作 是不是需要单独开个 goroutine 进行操作呢？， 防止请求间隔太短以及锁没有顺序带来的潜在问题呢？ 排除因为报文前后顺序
 
@@ -109,7 +109,7 @@ func del(serverId string) {
 		fmt.Println("no exists server info")
 		return
 	}
-	serv := _serv.(*mqtt_client.MQTT)
+	serv, _ := _serv.(*mqtt_client.MQTT)
 	//serv.Closing = true
 	serv.SetReconnectCb(func(m *mqtt_client.MQTT) {
 		fmt.Println("do reconnect cb", m.ClientID)
@@ -140,9 +140,9 @@ func del(serverId string) {
 				return true
 			})
 		}
-		fmt.Println("服务器 不重连", serverTypeAllClosed, serverId)
+		fmt.Println("服务器 不重连--", serverTypeAllClosed, serverId)
 	})
-	fmt.Println("remove server ", serverId)
+	fmt.Println("remove server-- ", serverId)
 }
 
 func ConnectToServer(serv types.RegisterInfo) {
@@ -175,6 +175,7 @@ func add(serv types.RegisterInfo) {
 
 	// 初始化 serverType：chan  serverType：serverId：serverInfo
 	// todo 资源回收  如果撤掉了 * servertype 通道需要关闭
+	servExists := false
 	servOptLocker.Lock()
 	global.RemoteBackendTypeForwardChan.SetIfAbsent(serv.ServerType, make(chan package_coder.BackendMsg, 10000)) // 不用回收
 	global.RemoteBackendClients.Upsert(serv.ServerID, client, func(exists bool, oldV, newV interface{}) interface{} {
@@ -185,6 +186,7 @@ func add(serv types.RegisterInfo) {
 		newServ, _ := newV.(*mqtt_client.MQTT)
 		if oldServ.Host == newServ.Host && oldServ.Port == newServ.Port && oldServ.ClientID == newServ.ClientID && oldServ.ServerType == newServ.ServerType {
 			fmt.Println("保持", oldServ.ClientID)
+			servExists = true
 			return oldV
 		}
 
@@ -195,10 +197,14 @@ func add(serv types.RegisterInfo) {
 		return newV
 	})
 	servOptLocker.Unlock()
+	if servExists {
+		fmt.Println("client lian le yijing ")
+		return
+	}
 
 	go func(s types.RegisterInfo, client *mqtt_client.MQTT) {
 		client.Start()
-		log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnected())
+		log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnectionOpen())
 		_forwardChan, ok := global.RemoteBackendTypeForwardChan.Get(s.ServerType)
 		if !ok {
 			log.Println("no found server in store.")
@@ -206,6 +212,7 @@ func add(serv types.RegisterInfo) {
 		forwardChan, _ := _forwardChan.(chan package_coder.BackendMsg)
 
 		for {
+			fmt.Println("++++++++")
 			select {
 			case <-client.Quit:
 				{
@@ -225,8 +232,8 @@ func add(serv types.RegisterInfo) {
 						continue
 					}
 
-					if !client.IsConnected() { // 如果server 关闭了 消息要重新推回去
-						fmt.Printf("client.IsConnected() = %v", false)
+					if !client.IsConnectionOpen() { // 如果server 关闭了 消息要重新推回去
+						fmt.Printf("client.IsConnectionOpen() = %v", false)
 						forwardChan <- msg
 						return
 					}
@@ -255,7 +262,7 @@ func replaceServer(serv map[string]types.RegisterInfo) {
 			ConnectToServer(newServ)
 		} else {
 			fmt.Println("连上了？1", oldServ.ClientID)
-			if oldServ.IsConnected() {
+			if oldServ.IsConnectionOpen() {
 				fmt.Println("连上了？2", oldServ.ClientID)
 				break
 			}

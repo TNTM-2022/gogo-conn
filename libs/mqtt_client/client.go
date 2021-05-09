@@ -124,7 +124,7 @@ func (m *MQTT) Start() {
 }
 
 func (m *MQTT) reconnectHandler(_ paho.Client, opts *paho.ClientOptions) {
-	fmt.Printf("reconnecting to %v server ... %v %v\n", opts.ClientID, time.Now().Second(), m.IsConnected())
+	fmt.Printf("reconnecting to %v server ... %v %v\n", opts.ClientID, time.Now().Second(), m.IsConnectionOpen())
 	if m.onReconnectCb != nil {
 		m.onReconnectCb(m)
 	}
@@ -136,8 +136,11 @@ func (m *MQTT) connectionLostHandler(_ paho.Client, err error) {
 func (m *MQTT) IsReconnect() bool {
 	return m.connectedNum > 1
 }
+func (m *MQTT) IsConnectionOpen() bool {
+	return m.client != nil && m.client.IsConnectionOpen()
+}
 func (m *MQTT) IsConnected() bool {
-	return m.client.IsConnectionOpen()
+	return m.client != nil && m.client.IsConnected()
 }
 func (m *MQTT) connectHandler(_ paho.Client) {
 	log.Printf("MQTT client connected. %v %v", m.ClientID, m.t)
@@ -150,7 +153,7 @@ func (m *MQTT) connectHandler(_ paho.Client) {
 func (m *MQTT) Publish(topic string, message []byte, qos byte, _async bool) {
 	token := m.client.Publish(topic, qos, false, message)
 	if token.Error() != nil {
-		logger.ERROR.Println("publish error ", token.Error(), m.client.IsConnected())
+		logger.ERROR.Println("publish error ", token.Error(), m.client.IsConnectionOpen())
 	}
 	if !_async {
 		token.Wait()

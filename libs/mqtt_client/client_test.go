@@ -19,5 +19,5 @@ func Test(t *testing.T) {
 	})
 	mqttClient.Start()
 	time.Sleep(time.Second)
-	fmt.Println(mqttClient.IsConnected())
+	fmt.Println(mqttClient.IsConnectionOpen())
 }

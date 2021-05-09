@@ -14,7 +14,7 @@ import (
 
 func Request(m *mqtt_client.MQTT, topic, _ string, reqId int64, msg []byte, cb interface{}) bool {
 	m.Callbacks.Set(fmt.Sprintf("%v", reqId), cb)
-	if !m.IsConnected() {
+	if !m.IsConnectionOpen() {
 		return false
 	}
 	m.Publish(topic, msg, 0, true)
