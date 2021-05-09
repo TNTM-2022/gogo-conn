@@ -20,6 +20,7 @@ export class ChatHandler {
             }
             await channel.apushMessage("push.push", {event1: "push.push", is_broad: true}, {opts: true})
             console.log('push message 2')
+            await channel.destroy()
         }
 
         {

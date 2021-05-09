@@ -12,9 +12,9 @@ func main() {
 	cancelCtx, cancelFn := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go monitor.StartMonitServer(cancelCtx, cancelFn, &wg)
 	go backEnd.StartMqttServer(cancelCtx, cancelFn, &wg)
 	go frontEnd.StartFrontServer()
+	go monitor.StartMonitServer(cancelCtx, cancelFn, &wg)
 
 	wg.Wait()
 }

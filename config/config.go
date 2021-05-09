@@ -24,6 +24,10 @@ var (
 	startTick       = time.Now()
 )
 
+func init() {
+	fmt.Println(*ServerID)
+}
+
 func Uptime() float64 {
 	return math.Floor(time.Now().Sub(startTick).Seconds()/60*100) / 100
 }

@@ -40,7 +40,7 @@ func init() {
 			fmt.Println("wrong func param type", reflect.TypeOf(v))
 		}
 		if f != nil {
-			f()
+			go f()
 		}
 		return nil
 	})
@@ -222,9 +222,11 @@ func add(serv types.RegisterInfo) {
 				}
 			case msg := <-forwardChan:
 				{
+					fmt.Println("loop6")
 					if msg.Sid == 0 {
 						continue
 					}
+					fmt.Println("loop7")
 					logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
 					pkgId := client.GetReqId()
 					p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
@@ -233,11 +235,14 @@ func add(serv types.RegisterInfo) {
 						continue
 					}
 
+					fmt.Println("loop8")
+
 					if !client.IsConnectionOpen() { // 如果server 关闭了 消息要重新推回去
 						fmt.Printf("client.IsConnectionOpen() = %v", false)
 						forwardChan <- msg
 						return
 					}
+					fmt.Println("loop9")
 
 					if !Request(client, "rpc", "", pkgId, p, &PkgBelong{
 						SID:         msg.Sid,
@@ -245,12 +250,15 @@ func add(serv types.RegisterInfo) {
 						ClientPkgID: msg.PkgID,
 						Route:       msg.Route,
 					}) {
+						fmt.Println("loop10")
+
 						forwardChan <- msg
 						fmt.Println("remote closed.")
 						return
 					}
+					fmt.Println("loop11")
 
-					logger.DEBUG.Println("rpc send ok", client.ClientID)
+					log.Println("rpc send ok", client.ClientID)
 				}
 			}
 		}

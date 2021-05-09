@@ -19,7 +19,12 @@ import (
 var s mqtt.Server
 
 func init() {
-	err := s.New("127.0.0.1:44155")
+	p := ""
+	if config.MqttServerPort > 0 {
+		p = fmt.Sprintf("%v", config.MqttServerPort)
+	}
+	fmt.Println(*config.MqttServerHost, p, fmt.Sprintf("%v:%v", *config.MqttServerHost, p))
+	err := s.New(fmt.Sprintf("%v:%v", *config.MqttServerHost, p))
 	if err != nil {
 		log.Panicln(err)
 	}

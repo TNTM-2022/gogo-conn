@@ -118,9 +118,10 @@ func (s *Server) New(addr string) error {
 	s.addr = ln.Addr()
 	go func() {
 		for {
+			fmt.Println("连接")
 			conn, err := ln.Accept()
 			if err != nil {
-				fmt.Print("err=>", err)
+				fmt.Println("err=>", err)
 				// handle error
 			}
 			fmt.Print("来连接了")
