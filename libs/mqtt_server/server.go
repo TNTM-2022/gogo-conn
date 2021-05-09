@@ -32,12 +32,13 @@ type Conn struct {
 	conn net.Conn
 }
 
-func (c *Conn) Reply(b []byte) error {
+func (c *Conn) Reply(b []byte) (err error) {
 	buf := new(bytes.Buffer)
 	p := packets.PublishPacket{FixedHeader: packets.FixedHeader{MessageType: packets.Publish}, Payload: b, TopicName: "rpc"}
-	_ = writeConn(&p, c.conn)
-	_, _ = c.conn.Write(buf.Bytes())
-	return nil
+	if err = writeConn(&p, c.conn); err != nil {
+		_, err = c.conn.Write(buf.Bytes())
+	}
+	return
 }
 
 func (s *Server) Publish(topic string, content string) {
@@ -122,6 +123,7 @@ func (s *Server) New(addr string) error {
 				fmt.Print("err=>", err)
 				// handle error
 			}
+			fmt.Print("来连接了")
 			go s.handleConnection(conn)
 		}
 	}()

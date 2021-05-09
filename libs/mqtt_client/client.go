@@ -118,7 +118,8 @@ func (m *MQTT) Start() {
 	t.Wait() //Timeout(time.Second * 2) // pinus 问题， 没有 connack确认。 game-server/node_modules/pinus-rpc/dist/lib/rpc-server/acceptors/mqtt-acceptor.js 44L。 client.connack({ returnCode: 0 });
 	logger.ERROR.Println("error ", t.Error())
 	if t.Error() != nil {
-		log.Panicf("cannot connect to %v server;  mqtt monitor timeout. %v:%v", m.ClientID, m.Host, m.Port)
+		log.Printf("cannot connect to %v server;  mqtt monitor timeout. %v:%v \n", m.ClientID, m.Host, m.Port)
+		m.Stop(1)
 	}
 	logger.DEBUG.Println("mqtt started??")
 }

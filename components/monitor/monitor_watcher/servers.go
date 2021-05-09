@@ -26,6 +26,13 @@ var servOptLocker sync.Mutex
 var LP TaskLoop
 
 func init() {
+	go func() {
+		t := time.Tick(time.Second * 60)
+		for range t {
+			fmt.Printf("clients: %v; clientTypes: %v\n", global.RemoteBackendClients.Keys(), global.RemoteBackendTypeForwardChan.Keys())
+		}
+	}()
+
 	LP = CreateTaskLoop()
 	go LP.Run(func(v interface{}) interface{} {
 		f, ok := v.(func())
@@ -39,25 +46,15 @@ func init() {
 	})
 }
 
-func init() {
-	go func() {
-		t := time.Tick(time.Second * 5)
-		for range t {
-			fmt.Println(global.RemoteBackendClients.Keys())
-			fmt.Println(global.RemoteBackendTypeForwardChan.Keys())
-		}
-	}()
-}
-
 // todo 服务器相关操作 是不是需要单独开个 goroutine 进行操作呢？， 防止请求间隔太短以及锁没有顺序带来的潜在问题呢？ 排除因为报文前后顺序
 
 func MonitorHandler(action string, ss types.MonitorBody) (req, respBody, respErr, notify []byte) {
 	switch action {
 	case "addServer":
 		{
-			fmt.Println("add server >>>>")
+			logger.DEBUG.Println("add server >>>>")
 			ConnectToServer(ss.Server)
-			fmt.Println("add server  <<<<<")
+			logger.DEBUG.Println("add server  <<<<<")
 			respErr = json.RawMessage(`1`)
 		}
 	case "removeServer":
@@ -68,18 +65,18 @@ func MonitorHandler(action string, ss types.MonitorBody) (req, respBody, respErr
 				respBody = json.RawMessage(`0`)
 				return
 			}
-			fmt.Println("remove server .............")
+			logger.DEBUG.Println("remove server .............")
 			removeServer(ss.ServerID)
 			respErr = json.RawMessage(`1`)
 			respBody = json.RawMessage(`1`)
 		}
 	case "replaceServer": // master 启动后， 重新同步信息； 防止出现 同名 但是不同端口 之类的事情发生
-		fmt.Println("replace server .............")
+		logger.DEBUG.Println("replace server .............")
 		replaceServer(ss.Servers)
 		respErr = json.RawMessage(`1`)
 		//respBody = json.RawMessage(`1`)
 	case "startOver":
-		fmt.Println("start over .............")
+		logger.DEBUG.Println("start over .............")
 		respErr = json.RawMessage(`1`) // 全部启动了， 再发这个
 
 	}
@@ -154,12 +151,13 @@ func ConnectToServer(serv types.RegisterInfo) {
 }
 
 func add(serv types.RegisterInfo) {
+	fmt.Println(serv)
 	if *config.ServerType == serv.ServerType {
 		log.Println("skip init same type server", serv.ServerID)
 		return
 	}
 
-	fmt.Println("server =>", serv)
+	logger.DEBUG.Println("server =>", serv)
 
 	client := mqtt_client.CreateMQTTClient(&mqtt_client.MQTT{
 		Host:       serv.Host,
@@ -192,7 +190,7 @@ func add(serv types.RegisterInfo) {
 
 		v, _ := oldV.(*mqtt_client.MQTT)
 		go v.Stop(5)
-		fmt.Println("关闭？？？？", v.ClientID)
+		logger.DEBUG.Println("关闭？？？？", v.ClientID)
 		// todo 停止消息转发， 然后再停止server client
 		return newV
 	})
@@ -203,16 +201,19 @@ func add(serv types.RegisterInfo) {
 	}
 
 	go func(s types.RegisterInfo, client *mqtt_client.MQTT) {
+		fmt.Println("loop1", s.ServerID)
 		client.Start()
+		fmt.Println("loop2")
 		log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnectionOpen())
 		_forwardChan, ok := global.RemoteBackendTypeForwardChan.Get(s.ServerType)
 		if !ok {
 			log.Println("no found server in store.")
 		}
+		fmt.Println("loop3")
 		forwardChan, _ := _forwardChan.(chan package_coder.BackendMsg)
-
+		fmt.Println("loop4")
 		for {
-			fmt.Println("++++++++")
+			fmt.Println("loop5")
 			select {
 			case <-client.Quit:
 				{
@@ -261,14 +262,13 @@ func replaceServer(serv map[string]types.RegisterInfo) {
 		if newServ, ok := serv[i.Key]; ok {
 			ConnectToServer(newServ)
 		} else {
-			fmt.Println("连上了？1", oldServ.ClientID)
 			if oldServ.IsConnectionOpen() {
-				fmt.Println("连上了？2", oldServ.ClientID)
 				break
 			}
+			fmt.Println("link to", oldServ.ClientID)
 			removeServer(oldServ.ClientID)
 		}
 		fmt.Println(i)
 	}
-	fmt.Println("replace server done")
+	logger.DEBUG.Println("replace server done")
 }

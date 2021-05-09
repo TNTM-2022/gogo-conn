@@ -30,17 +30,17 @@ type reply struct {
 	//Resp json.RawMessage `json:"resp"`
 }
 
-func replyResponse(conn *mqtt.Conn, pkgId uint64, error string) {
-	fmt.Println(error)
+func replyResponse(conn *mqtt.Conn, pkgId uint64, err string) {
 	r := reply{
 		Id: pkgId,
 	}
-	pkgIds, err := json.Marshal(r)
-	if err != nil {
+	pkgIds, _err := json.Marshal(r)
+	if _err != nil {
+		err = _err.Error()
 		fmt.Println(err)
 	}
-	fmt.Println("reply", pkgId, error, string(pkgIds))
-	_ = conn.Reply(pkgIds)
+	fmt.Println("reply", pkgId, string(pkgIds))
+	log.Println(conn.Reply(pkgIds))
 }
 func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGroup) {
 	defer f()
@@ -48,7 +48,7 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 
 	h, p, err := net.SplitHostPort(s.Addr().String())
 	port, _ := strconv.ParseInt(p, 10, 32)
-	fmt.Println("mqtt server =>>>", h, p, err, s.Addr(), port)
+	logger.DEBUG.Println("mqtt server =>>>", h, p, err, s.Addr(), port)
 	config.MqttServerPort = int(port)
 	if err != nil {
 		log.Panicln(err)

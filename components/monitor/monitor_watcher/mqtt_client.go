@@ -9,6 +9,7 @@ import (
 	"go-connector/libs/package_coder"
 	"go-connector/libs/pomelo_coder"
 	"go-connector/logger"
+	"log"
 	"strconv"
 )
 
@@ -31,6 +32,7 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 	// todo 使用 pop 代替
 	m.Callbacks.RemoveCb(fmt.Sprintf("%v", pkgId), func(k string, v interface{}, exists bool) bool {
 		// k: pkgId; v 存储的这个包相关信息
+		log.Println("来包了")
 		if !exists {
 			fmt.Println("no exists", fmt.Sprintf("%v", pkgId), k)
 			return false

@@ -98,12 +98,12 @@ func doRegisterServer(mqttClient *mqtt.MQTT) {
 	switch mqttClient.IsReconnect() {
 	case false:
 		firstConnectCb(mqttClient, regStr)
-		fmt.Println("first connect")
+		logger.DEBUG.Println("first connect")
 	case true:
 		//regInfo.Token = ""
 		//regStr, _ := json.Marshal(regInfo)
 		reconnectCb(mqttClient, regStr)
-		fmt.Println("re connect")
+		logger.DEBUG.Println("re connect")
 
 	}
 }

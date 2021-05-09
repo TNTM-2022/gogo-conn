@@ -34,7 +34,7 @@ func PushMessage(rec *package_coder.RawRecv) (pkgId uint64, error string) {
 			}
 			sid, ok := global.GetSidByUid(uid)
 			if !ok {
-				fmt.Printf("no uid/sid found; uid:%v", uid)
+				fmt.Printf("no uid/sid found; uid:%v\n", uid)
 				notFoundId = append(notFoundId, uid)
 				continue
 			}

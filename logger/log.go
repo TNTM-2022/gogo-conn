@@ -1,7 +1,5 @@
 package logger
 
-import "fmt"
-
 type Log interface {
 	Println(...interface{})
 	Printf(...interface{})
@@ -10,10 +8,10 @@ type Log interface {
 type log struct{}
 
 func (l log) Println(v ...interface{}) {
-	fmt.Println(v...)
+	//fmt.Println(v...)
 }
 func (l log) Printf(s string, v ...interface{}) {
-	fmt.Printf(s, v...)
+	//fmt.Printf(s, v...)
 }
 
 var (
