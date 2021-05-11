@@ -44,8 +44,9 @@ func replyResponse(conn *mqtt.Conn, pkgId uint64, err string) {
 		err = _err.Error()
 		fmt.Println(err)
 	}
-	fmt.Println("reply", pkgId, string(pkgIds))
-	log.Println(conn.Reply(pkgIds))
+	if e := conn.Reply(pkgIds); e != nil {
+		log.Println("reply error =", e)
+	}
 }
 func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGroup) {
 	defer f()
@@ -61,7 +62,6 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 	//s.OnSubscribe(handleSubscribe)
 	//s.OnUnSubscribe(handleUnSubscribe)
 	s.OnPublish(func(conn *mqtt.Conn, _ string, _ uint16, b []byte) {
-		log.Println("server* ", string(b))
 		logger.DEBUG.Println("server* ", string(b))
 
 		var rec package_coder.RawRecv
@@ -77,7 +77,6 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 				{
 					pkgId, err := channel.PushMessage(&rec)
 					replyResponse(conn, pkgId, err)
-					fmt.Println("push message")
 					return
 				}
 			}

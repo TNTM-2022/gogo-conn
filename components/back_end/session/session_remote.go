@@ -14,7 +14,6 @@ func DoSave(userId uint32, settings map[string]json.RawMessage) (error string) {
 
 		return
 	}
-	fmt.Println("set session", userId)
 	session, ok := global.GetSessionBySid(sid)
 	if !ok {
 		return

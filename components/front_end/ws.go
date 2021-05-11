@@ -29,7 +29,7 @@ func handleReq(pomeloCoder *libPomeloCoder.Coder, buf []byte, sid uint32) packag
 	// protobuf decode
 	buf, err := libProtobufCoder.PbToJson(dMsg.Route, dMsg.Body)
 	if err != nil {
-		log.Println(err)
+		log.Println("empty return", err)
 		return package_coder.BackendMsg{}
 	}
 
@@ -96,7 +96,6 @@ func handleSend(bMsg package_coder.BackendMsg) []byte {
 }
 
 func judgeWsConnError(err error) {
-	fmt.Println("type: ", reflect.TypeOf(err))
 	if websocket.IsUnexpectedCloseError(err) {
 		fmt.Println("IsUnexpectedCloseError")
 		return
@@ -106,7 +105,7 @@ func judgeWsConnError(err error) {
 		return
 	}
 	if v, ok := err.(net.Error); ok {
-		fmt.Println("error net work;", v.Timeout(), v.Temporary(), v.Error())
+		fmt.Println("error net work;", v.Timeout(), v.Temporary(), v.Error(), reflect.TypeOf(err))
 		return
 	}
 }
@@ -116,7 +115,9 @@ func ws(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	defer ws.Close()
+	defer func() {
+		_ = ws.Close()
+	}()
 
 	pomeloCoder := libPomeloCoder.InitCoder()
 	sid, ok := global.GetSid()
@@ -201,7 +202,7 @@ func ws(c echo.Context) error {
 					case libPomeloCoder.Package["TYPE_DATA"]:
 						{
 							backendMsg := handleReq(pomeloCoder, mm.Body, sid)
-							log.Println("TYPE_DATA >> ", backendMsg.Route, string(backendMsg.Payload))
+							logger.DEBUG.Println("TYPE_DATA >> ", backendMsg.Route, string(backendMsg.Payload))
 							serverType := strings.SplitN(backendMsg.Route, ".", 2)[0]
 							if v, ok := global.RemoteBackendTypeForwardChan.Get(serverType); ok {
 								if ch, ok := v.(chan package_coder.BackendMsg); ok {

@@ -218,8 +218,6 @@ func add(serv types.RegisterInfo) {
 				}
 			case msg := <-forwardChan:
 				{
-					fmt.Println("loop11", s.ServerID)
-
 					if msg.Sid == 0 {
 						continue
 					}
@@ -227,7 +225,6 @@ func add(serv types.RegisterInfo) {
 					pkgId := client.GetReqId()
 
 					p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
-					fmt.Println("组装。。", string(p))
 					if p == nil {
 						log.Println("encoding skip...")
 						continue
@@ -249,7 +246,7 @@ func add(serv types.RegisterInfo) {
 						fmt.Println("remote closed.")
 						return
 					}
-					log.Println("rpc send ok", client.ClientID)
+					logger.DEBUG.Println("rpc send ok", client.ClientID)
 				}
 			}
 		}

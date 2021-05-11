@@ -73,33 +73,27 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 		logger.DEBUG.Println("protobuf no fd", namespace, isPush)
 		return nil, nil
 	}
-	log.Printf("json2pb; namespace=> %s; messageName=> %s", namespace, messageName, string(jsonStr))
+	logger.DEBUG.Printf("json2pb; namespace=> %s; messageName=> %s", namespace, messageName, string(jsonStr))
 	msg := fd.FindMessage(messageName)
 	if msg == nil {
 		fmt.Println("no msg", messageName)
 		return nil, nil
 	}
-	fmt.Println(1, msg)
 	dymsg := dynamic.NewMessage(msg)
 
 	var err error
 	unmarshaler := jsonpb.Unmarshaler{AllowUnknownFields: true}
-	fmt.Println(3)
 
 	err = dymsg.UnmarshalJSONPB(&unmarshaler, jsonStr)
-	fmt.Println(4, err)
 	if err != nil {
 		fmt.Println("UnmarshalJSONPB error", err)
-
 		return nil, err
 	}
-
-	fmt.Println(5, dymsg)
 
 	//dymsg.ConvertTo(a)
 	//any, err := googleAnyPb.New(a)
 	//any, err := anypb.New(*dymsg)
-	any, _ := dymsg.Marshal()
+	any, err := dymsg.Marshal()
 
 	//googleProto.Marshal(dymsg.ProtoMessage())
 	//any, err := googleAnypb.New(dymsg)
@@ -108,7 +102,6 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 		fmt.Println(err, "err")
 		return nil, err
 	}
-	fmt.Println(6)
 	//fmt.Println(any.Value)
 
 	//return any.Value, nil
@@ -119,26 +112,28 @@ func PbToJson(messageName string, protoData []byte) ([]byte, error) {
 	namespace := getNamesace(messageName)
 	_fd, ok := globalReqProtoMap.Load(namespace)
 	if !ok {
-		fmt.Println(">>>>>>>>1 ", namespace)
-
 		return protoData, nil
 	}
 	fd, ok := _fd.(*desc.FileDescriptor)
 	if fd == nil || !ok {
-		fmt.Println(">>>>>>>>2 ", namespace)
-
 		return protoData, nil
 	}
 
 	msg := fd.FindMessage(messageName)
 	if msg == nil {
-		fmt.Println(">>>>>>>>3 ", namespace)
 		return protoData, nil
 	}
 	dymsg := dynamic.NewMessage(msg)
 
 	err := githubProto.Unmarshal(protoData, dymsg)
-
+	if err != nil {
+		log.Println(err)
+		return protoData, nil
+	}
 	jsonByte, err := dymsg.MarshalJSON()
+	if err != nil {
+		log.Println(err)
+		return protoData, nil
+	}
 	return jsonByte, err
 }

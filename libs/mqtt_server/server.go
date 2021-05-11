@@ -41,7 +41,7 @@ func (c *Conn) Reply(b []byte) (err error) {
 	return
 }
 
-func (s *Server) Publish(topic string, content string) {
+func (s *Server) Publish(_ string, _ string) {
 
 }
 
@@ -118,13 +118,11 @@ func (s *Server) New(addr string) error {
 	s.addr = ln.Addr()
 	go func() {
 		for {
-			fmt.Println("连接")
 			conn, err := ln.Accept()
 			if err != nil {
 				fmt.Println("err=>", err)
 				// handle error
 			}
-			fmt.Print("来连接了")
 			go s.handleConnection(conn)
 		}
 	}()
@@ -226,10 +224,10 @@ func (s *Server) handleConnect(conn net.Conn) (id string, error error) {
 	}
 
 	// todo : 验证字段 , cp.Username  cp.Password ...
-	if "验证不通过" != "验证不通过" {
-		ack.ReturnCode = 0x04
-		error = errors.New("auth fail")
-	}
+	//if "验证不通过" != "验证不通过" {
+	//	ack.ReturnCode = 0x04
+	//	error = errors.New("auth fail")
+	//}
 
 	if err := writeConn(ack, conn); err != nil {
 		error = err
@@ -250,6 +248,9 @@ func writeConn(p packets.ControlPacket, conn net.Conn) error {
 	if err := p.Write(buf); err != nil {
 		return err
 	}
-	conn.Write(buf.Bytes())
+	if n, e := conn.Write(buf.Bytes()); e != nil {
+		fmt.Printf("write to conn, n=%v, err=%v\n", n, e)
+	}
+
 	return nil
 }

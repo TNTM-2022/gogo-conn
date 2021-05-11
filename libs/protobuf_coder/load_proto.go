@@ -18,7 +18,6 @@ func WatchProtos(ctx context.Context) {
 	load(ctx)
 	go func() {
 		for {
-			fmt.Println("protobuf")
 			<-time.After(time.Second)
 			if c := load(ctx); c == false {
 				break
