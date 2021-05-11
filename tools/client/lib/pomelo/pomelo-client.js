@@ -26,9 +26,10 @@ const RES_OLD_CLIENT = 501;
 // const clientProto = require('../../../../game-server/config/clientProtos');
 // const pushProto = require('../../../../game-server/config/pushProtos');
 
-const decodeIO_decoder = protobufjs.Root.fromJSON(require("./target.json"));
-const decodeIO_encoder = null;//= protobufjs.Root.fromJSON(clientProto);
-const push_decoder = protobufjs.Root.fromJSON(require("./target.json"));//= protobufjs.Root.fromJSON(pushProto);
+const decodeIO_decoder = protobufjs.Root.fromJSON(require("./target_res.json"));
+const decodeIO_encoder = protobufjs.Root.fromJSON(require("./target_req.json"));
+// const decodeIO_encoder = null;//= protobufjs.Root.fromJSON(clientProto);
+const push_decoder = protobufjs.Root.fromJSON(require("./target_res.json"));
 
 let _uuid = 1000;
 function create() {

@@ -201,48 +201,43 @@ func add(serv types.RegisterInfo) {
 	}
 
 	go func(s types.RegisterInfo, client *mqtt_client.MQTT) {
-		fmt.Println("loop1", s.ServerID)
 		client.Start()
-		fmt.Println("loop2")
 		log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnectionOpen())
 		_forwardChan, ok := global.RemoteBackendTypeForwardChan.Get(s.ServerType)
 		if !ok {
 			log.Println("no found server in store.")
 		}
-		fmt.Println("loop3")
 		forwardChan, _ := _forwardChan.(chan package_coder.BackendMsg)
-		fmt.Println("loop4")
+		fmt.Println("loop1", s.ServerID)
 		for {
-			fmt.Println("loop5")
 			select {
 			case <-client.Quit:
 				{
-					fmt.Println("close loop")
+					fmt.Println("close loop", s.ServerID)
 					return
 				}
 			case msg := <-forwardChan:
 				{
-					fmt.Println("loop6")
+					fmt.Println("loop11", s.ServerID)
+
 					if msg.Sid == 0 {
 						continue
 					}
-					fmt.Println("loop7")
 					logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
 					pkgId := client.GetReqId()
+
 					p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
+					fmt.Println("组装。。", string(p))
 					if p == nil {
 						log.Println("encoding skip...")
 						continue
 					}
-
-					fmt.Println("loop8")
 
 					if !client.IsConnectionOpen() { // 如果server 关闭了 消息要重新推回去
 						fmt.Printf("client.IsConnectionOpen() = %v", false)
 						forwardChan <- msg
 						return
 					}
-					fmt.Println("loop9")
 
 					if !Request(client, "rpc", "", pkgId, p, &PkgBelong{
 						SID:         msg.Sid,
@@ -250,14 +245,10 @@ func add(serv types.RegisterInfo) {
 						ClientPkgID: msg.PkgID,
 						Route:       msg.Route,
 					}) {
-						fmt.Println("loop10")
-
 						forwardChan <- msg
 						fmt.Println("remote closed.")
 						return
 					}
-					fmt.Println("loop11")
-
 					log.Println("rpc send ok", client.ClientID)
 				}
 			}

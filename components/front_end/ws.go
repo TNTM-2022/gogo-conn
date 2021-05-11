@@ -11,6 +11,7 @@ import (
 	libPomeloCoder "go-connector/libs/pomelo_coder"
 	libProtobufCoder "go-connector/libs/protobuf_coder"
 	"go-connector/logger"
+	"log"
 	"net"
 	"net/http/pprof"
 	"reflect"
@@ -28,20 +29,20 @@ func handleReq(pomeloCoder *libPomeloCoder.Coder, buf []byte, sid uint32) packag
 	// protobuf decode
 	buf, err := libProtobufCoder.PbToJson(dMsg.Route, dMsg.Body)
 	if err != nil {
-		logger.ERROR.Println(err)
+		log.Println(err)
+		return package_coder.BackendMsg{}
 	}
-	dMsg.Body = buf
 
+	dMsg.Body = buf
 	serverType := strings.SplitN(dMsg.Route, ".", 2)[0]
 
 	// package encode 跟 mqttclient 绑定
 	return package_coder.BackendMsg{
-		Route:      dMsg.Route,
-		ServerType: serverType,
-		Payload:    buf,
-		PkgID:      dMsg.ID,
-		Sid:        sid,
-		//ServerId:   serverId, // todo 不清楚 应该不是 frontendserverid
+		Route:         dMsg.Route,
+		ServerType:    serverType,
+		Payload:       dMsg.Body,
+		PkgID:         dMsg.ID,
+		Sid:           sid,
 		FrontServerId: *config.ServerID,
 
 		MType:         dMsg.Type, // todo  没有实现剩下这几项
@@ -200,7 +201,7 @@ func ws(c echo.Context) error {
 					case libPomeloCoder.Package["TYPE_DATA"]:
 						{
 							backendMsg := handleReq(pomeloCoder, mm.Body, sid)
-							logger.DEBUG.Println("TYPE_DATA >> ", backendMsg.Route)
+							log.Println("TYPE_DATA >> ", backendMsg.Route, string(backendMsg.Payload))
 							serverType := strings.SplitN(backendMsg.Route, ".", 2)[0]
 							if v, ok := global.RemoteBackendTypeForwardChan.Get(serverType); ok {
 								if ch, ok := v.(chan package_coder.BackendMsg); ok {

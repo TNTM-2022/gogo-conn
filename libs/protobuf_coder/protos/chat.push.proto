@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package chat;
+message push{
+  string event1 = 1;
+  bool is_board = 2;
+}

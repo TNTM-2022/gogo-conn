@@ -7,7 +7,7 @@ async function run(n) {
     u.listen("chat.push",d =>console.log(d.data))
     await u.login();
 
-    await u.talk('chat.chatHandler.test', {name: 'test'}).catch(console.error)
+    await u.talk('chat.chatHandler.test', {name: 'testname', age:20}).catch(console.error)
     // await u.talk('chat.chatHandler.test', {name: 'test'}).catch(console.error)
     // await u.talk('connector.entryHandler.enter', {rid: "1999", username: 'username'})
     // for (let i = 0; i < 100 / 100; i++) {

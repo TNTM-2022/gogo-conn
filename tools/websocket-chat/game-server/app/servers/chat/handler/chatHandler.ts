@@ -34,10 +34,12 @@ export class ChatHandler {
             console.log('session set 2')
         }
 
+        console.log(JSON.stringify(msg), msg.name)
+
         return {
             code: 200,
-            user: 'test',
-            msg: "msg"
+            user: msg.name,
+            msg: "msg" + msg
         };
     }
 

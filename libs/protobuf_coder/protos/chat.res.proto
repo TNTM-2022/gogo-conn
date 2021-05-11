@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package chat.chatHandler;
+message test{
+  int32 code = 4;
+  string user = 5;
+  string msg = 6;
+}

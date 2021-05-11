@@ -3,8 +3,7 @@ package proto_coder
 import (
 	"fmt"
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes"
+	githubProto "github.com/golang/protobuf/proto"
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
@@ -14,17 +13,9 @@ import (
 	"sync"
 )
 
-// todo 使用 sync.map 进行改造
-var globalReqProtoMap map[string]*desc.FileDescriptor
-var globalRespProtoMap map[string]*desc.FileDescriptor
-var globalPushProtoMap map[string]*desc.FileDescriptor
-var lk sync.RWMutex
-
-func init() {
-	globalReqProtoMap = make(map[string]*desc.FileDescriptor, 200)
-	globalRespProtoMap = make(map[string]*desc.FileDescriptor, 200)
-	globalPushProtoMap = make(map[string]*desc.FileDescriptor, 200)
-}
+var globalReqProtoMap = sync.Map{}
+var globalRespProtoMap = sync.Map{}
+var globalPushProtoMap = sync.Map{}
 
 func UpdateProto(path string) {
 	p := protoparse.Parser{}
@@ -35,49 +26,47 @@ func UpdateProto(path string) {
 	}
 	fd := fds[0]
 
-	lk.Lock()
-	defer lk.Unlock()
-
 	namespace := fd.GetPackage()
 
-	var m map[string]*desc.FileDescriptor
 	if strings.HasSuffix(path, "req.proto") {
-		m = globalReqProtoMap
+		globalReqProtoMap.Store(namespace, fd)
 
 	} else if strings.HasSuffix(path, "res.proto") {
-		m = globalRespProtoMap
+		globalRespProtoMap.Store(namespace, fd)
 
 	} else if strings.HasSuffix(path, "push.proto") {
-		m = globalPushProtoMap
+		globalPushProtoMap.Store(namespace, fd)
 
 	} else {
 		fmt.Println("wrong proto file")
 		return
 	}
 
-	m[namespace] = fd
 	log.Printf("proto 文件初始化 namespace=> %s; isNil=>%s", namespace, fd.GetName())
 }
 
 func getNamesace(p string) string {
 	s := strings.Split(p, ".")
-	//if len(s) !=3 {
-	//	return ""
-	//}
-	logger.DEBUG.Println("getNamespace", s[0:len(s)-1])
+	//log.Println("getNamespace", s[0:len(s)-1])
 	return strings.Join(s[0:len(s)-1], ".")
 }
 
 func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
-	lk.RLock()
-	defer lk.RUnlock()
-
 	namespace := getNamesace(messageName)
 	var fd *desc.FileDescriptor
 	if isPush {
-		fd = globalPushProtoMap[namespace]
+
+		_fd, ok := globalPushProtoMap.Load(namespace)
+		if !ok {
+			return nil, nil
+		}
+		fd, ok = _fd.(*desc.FileDescriptor)
 	} else {
-		fd = globalRespProtoMap[namespace]
+		_fd, ok := globalRespProtoMap.Load(namespace)
+		if !ok {
+			return nil, nil
+		}
+		fd, ok = _fd.(*desc.FileDescriptor)
 	}
 
 	if fd == nil {
@@ -107,31 +96,48 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 
 	fmt.Println(5, dymsg)
 
-	any, err := ptypes.MarshalAny(dymsg)
+	//dymsg.ConvertTo(a)
+	//any, err := googleAnyPb.New(a)
+	//any, err := anypb.New(*dymsg)
+	any, _ := dymsg.Marshal()
+
+	//googleProto.Marshal(dymsg.ProtoMessage())
+	//any, err := googleAnypb.New(dymsg)
+	//any, err := ptypes.MarshalAny(dymsg)
 	if err != nil {
 		fmt.Println(err, "err")
 		return nil, err
 	}
 	fmt.Println(6)
-	fmt.Println(any.Value)
+	//fmt.Println(any.Value)
 
-	return any.Value, nil
+	//return any.Value, nil
+	return any, nil
 }
 
 func PbToJson(messageName string, protoData []byte) ([]byte, error) {
-	lk.RLock()
-	defer lk.RUnlock()
-
 	namespace := getNamesace(messageName)
-	fd := globalReqProtoMap[namespace]
-	if fd == nil {
-		return nil, nil
+	_fd, ok := globalReqProtoMap.Load(namespace)
+	if !ok {
+		fmt.Println(">>>>>>>>1 ", namespace)
+
+		return protoData, nil
+	}
+	fd, ok := _fd.(*desc.FileDescriptor)
+	if fd == nil || !ok {
+		fmt.Println(">>>>>>>>2 ", namespace)
+
+		return protoData, nil
 	}
 
 	msg := fd.FindMessage(messageName)
+	if msg == nil {
+		fmt.Println(">>>>>>>>3 ", namespace)
+		return protoData, nil
+	}
 	dymsg := dynamic.NewMessage(msg)
 
-	err := proto.Unmarshal(protoData, dymsg)
+	err := githubProto.Unmarshal(protoData, dymsg)
 
 	jsonByte, err := dymsg.MarshalJSON()
 	return jsonByte, err

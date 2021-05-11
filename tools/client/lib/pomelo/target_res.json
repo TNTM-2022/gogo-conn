@@ -1,0 +1,40 @@
+{
+  "nested": {
+    "chat": {
+      "nested": {
+        "chatHandler": {
+          "nested": {
+            "test": {
+              "fields": {
+                "code": {
+                  "type": "int32",
+                  "id": 4
+                },
+                "msg": {
+                  "type": "string",
+                  "id": 6
+                },
+                "user": {
+                  "type": "string",
+                  "id": 5
+                }
+              }
+            }
+          }
+        },
+        "push": {
+          "fields": {
+            "event1": {
+              "type": "string",
+              "id": 1
+            },
+            "is_board": {
+              "type": "bool",
+              "id": 2
+            }
+          }
+        }
+      }
+    }
+  }
+}

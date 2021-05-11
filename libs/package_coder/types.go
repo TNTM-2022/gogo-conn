@@ -28,10 +28,10 @@ import (
 //}
 
 type PkgPayloadInfo struct {
-	PkgID uint64 `json:"id"`
-	Route string `json:"route"`
-	Body  json.RawMessage
-	IsBf  bool `json:"isBf,omitempty"` // 自定义添加的， 用来标识是不是透传 protobuf 给后端了
+	PkgID uint64          `json:"id"`
+	Route string          `json:"route"`
+	Body  json.RawMessage `json:"body"`
+	IsBf  bool            `json:"isBf,omitempty"` // 自定义添加的， 用来标识是不是透传 protobuf 给后端了
 }
 
 type PayloadMsg struct {

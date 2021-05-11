@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var fileCache = make(map[string]time.Time)
+var fileCache = make(map[string]time.Time) // 只需要单 goroutine 运行
 
 func init() {
 	go WatchProtos(context.Background())

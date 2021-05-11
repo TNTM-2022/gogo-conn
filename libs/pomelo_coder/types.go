@@ -1,5 +1,7 @@
 package pomelo_coder
 
+import "encoding/json"
+
 // MType msg type
 type MType struct {
 	Type byte
@@ -8,12 +10,12 @@ type MType struct {
 
 // DecodedMsg struct
 type DecodedMsg struct {
-	ID            uint64 `json:"id"`
-	Type          byte   `json:"type"` // 请求类型  TYPE_REQUEST, TYPE_NOTIFY, ...
-	CompressRoute bool   `json:"compressRoute"`
-	Route         string `json:"route"`
-	Body          []byte `json:"body"`
-	CompressGzip  bool   `json:"compressGzip"`
+	ID            uint64          `json:"id"`
+	Type          byte            `json:"type"` // 请求类型  TYPE_REQUEST, TYPE_NOTIFY, ...
+	CompressRoute bool            `json:"compressRoute"`
+	Route         string          `json:"route"`
+	Body          json.RawMessage `json:"body"`
+	CompressGzip  bool            `json:"compressGzip"`
 }
 
 //type UserConn struct {

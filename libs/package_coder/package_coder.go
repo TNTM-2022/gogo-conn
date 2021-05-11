@@ -12,12 +12,21 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 			fmt.Println("recovered from ", r)
 		}
 	}()
+
 	pkgContentInfo, _ := json.Marshal(PkgPayloadInfo{
 		PkgID: u.PkgID, // 客户端包
 		Route: u.Route,
 		Body:  u.Payload,
 	})
 
+	if true {
+		i, err := json.Marshal(&PkgPayloadInfo{
+			PkgID: u.PkgID, // 客户端包
+			Route: u.Route,
+			Body:  json.RawMessage(string(u.Payload)),
+		})
+		fmt.Println(">>", string(i), err, "+++++", string(u.Payload))
+	}
 	_session, ok := global.GetSessionBySid(u.Sid)
 	if !ok {
 		fmt.Println("no session found")
