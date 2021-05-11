@@ -96,10 +96,10 @@ func list() []byte {
 
 func blacklist(blackList []string) {
 	for _, v := range blackList { // todo 不做ip 校验
-		global.BlackList.Set(v, true)
+		global.BlackList.Set(v, true) // todo 实现 blacklist
 	}
 }
 
-func restart() {
-	fmt.Println("not implement yet. do it manually")
-}
+//func restart() {
+//	fmt.Println("not implement yet. do it manually")
+//}

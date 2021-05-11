@@ -28,7 +28,7 @@ func PushMessage(rec *package_coder.RawRecv) (pkgId uint64, error string) {
 	} else {
 		failedId := make([]uint32, 0, len(userIds))
 		notFoundId := make([]uint32, 0, len(userIds))
-		for _, uid := range userIds { // todo 后端传过来的全部是 uid， 需要根据 uid 传值
+		for _, uid := range userIds { // 后端传过来的全部是 uid， 需要根据 uid 传值
 			if uid < 1 {
 				continue
 			}
