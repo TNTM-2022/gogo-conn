@@ -11,10 +11,15 @@ import (
 
 var fileCache = make(map[string]time.Time)
 
+func init() {
+	go WatchProtos(context.Background())
+}
 func WatchProtos(ctx context.Context) {
 	load(ctx)
 	go func() {
 		for {
+			fmt.Println("protobuf")
+			<-time.After(time.Second)
 			if c := load(ctx); c == false {
 				break
 			}

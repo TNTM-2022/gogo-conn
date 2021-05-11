@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	_tmp            = ""
+	_tmp            = "/Users/inter/Code/go-connector/libs/protobuf_coder/protos"
 	ProtoPath       = &_tmp
 	_serverid       = fmt.Sprintf("connector-%v", time.Now().Format("200601021504")) //奇葩， 必须是这个时间点
 	ServerID        = &_serverid
@@ -19,9 +19,9 @@ var (
 	_MqttServerHost = "127.0.0.1"
 	MqttServerHost  = &_MqttServerHost
 	MqttServerPort  = 0
-	WsServerPort    = 12345
-	Pid             = os.Getpid()
-	startTick       = time.Now()
+	//WsServerPort    = 12345
+	Pid       = os.Getpid()
+	startTick = time.Now()
 )
 
 func init() {

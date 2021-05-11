@@ -18,7 +18,7 @@ export class ChatHandler {
             if (!channel.getMember(session.uid)) {
                 channel.add(session.uid, session.frontendId)
             }
-            await channel.apushMessage("push.push", {event1: "push.push", is_broad: true}, {opts: true})
+            await channel.apushMessage("chat.push", {event1: "push.push", is_broad: true}, {opts: true})
             console.log('push message 2')
             await channel.destroy()
         }
@@ -36,8 +36,8 @@ export class ChatHandler {
 
         return {
             code: 200,
-            name: 'test',
-            age: 10
+            user: 'test',
+            msg: "msg"
         };
     }
 

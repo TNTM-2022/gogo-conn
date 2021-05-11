@@ -1,21 +1,13 @@
 {
   "nested": {
-    "user": {
+    "chat": {
       "nested": {
-        "entryHandler": {
+        "chatHandler": {
           "nested": {
-            "D": {
-              "fields": {
-                "uid": {
-                  "type": "int32",
-                  "id": 1
-                }
-              }
-            },
-            "Data": {
+            "test": {
               "fields": {
                 "user": {
-                  "type": "D",
+                  "type": "string",
                   "id": 2
                 },
                 "msg": {
@@ -23,22 +15,10 @@
                   "id": 1
                 }
               }
-            },
-            "entry": {
-              "fields": {
-                "code": {
-                  "type": "int32",
-                  "id": 1
-                },
-                "data": {
-                  "type": "Data",
-                  "id": 2
-                }
-              }
             }
           }
         },
-        "msg": {
+        "push": {
           "nested": {
             "entry": {
               "fields": {
