@@ -34,7 +34,7 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 		//m.Callbacks.RemoveCb(fmt.Sprintf("%v", pkgId), func(k string, v interface{}, exists bool) bool {
 		// k: pkgId; v 存储的这个包相关信息
 		//if !exists {
-		//	//fmt.Println("no exists", fmt.Sprintf("%v", pkgId), k)
+		//	//fmt.Println("no exists", fmt.Sprintf("%v", pkgId), k) // for notify not has pkgid
 		//	return false
 		//}
 		if pkgBelong, ok := v.(*PkgBelong); ok {
