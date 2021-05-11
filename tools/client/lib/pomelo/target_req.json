@@ -1,0 +1,24 @@
+{
+  "nested": {
+    "chat": {
+      "nested": {
+        "chatHandler": {
+          "nested": {
+            "test": {
+              "fields": {
+                "name": {
+                  "type": "string",
+                  "id": 3
+                },
+                "age": {
+                  "type": "int32",
+                  "id": 4
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
