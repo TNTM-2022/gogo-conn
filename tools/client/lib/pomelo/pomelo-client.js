@@ -149,6 +149,7 @@ function create() {
 
     pomelo.notify = function (route, msg) {
         msg = msg || {};
+        console.log("^^^^^^^^^^^^^^^^", route, msg)
         sendMessage(0, route, msg);
     };
 

@@ -13,7 +13,9 @@ import (
 )
 
 func Request(m *mqtt_client.MQTT, topic, _ string, reqId int64, msg []byte, cb interface{}) bool {
-	m.Callbacks.Set(fmt.Sprintf("%v", reqId), cb)
+	if reqId > 0 {
+		m.Callbacks.Set(fmt.Sprintf("%v", reqId), cb)
+	}
 	if !m.IsConnectionOpen() {
 		return false
 	}
@@ -28,13 +30,13 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 		return
 	}
 	pkgId, dpkg := decodeResp(msg.Topic(), msg.MessageID(), &rec)
-	// todo 使用 pop 代替
-	m.Callbacks.RemoveCb(fmt.Sprintf("%v", pkgId), func(k string, v interface{}, exists bool) bool {
+	if v, exists := m.Callbacks.Pop(fmt.Sprintf("%v", pkgId)); exists {
+		//m.Callbacks.RemoveCb(fmt.Sprintf("%v", pkgId), func(k string, v interface{}, exists bool) bool {
 		// k: pkgId; v 存储的这个包相关信息
-		if !exists {
-			fmt.Println("no exists", fmt.Sprintf("%v", pkgId), k)
-			return false
-		}
+		//if !exists {
+		//	//fmt.Println("no exists", fmt.Sprintf("%v", pkgId), k)
+		//	return false
+		//}
 		if pkgBelong, ok := v.(*PkgBelong); ok {
 			dpkg.Sid = pkgBelong.SID
 			dpkg.Route = pkgBelong.Route
@@ -46,14 +48,15 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 					ch <- *dpkg // todo 使用指针会好一些？
 				}
 			} else {
-				fmt.Println("no sid ch")
+				fmt.Println("no sid ch", uint64(pkgBelong.SID), string(msg.Payload()))
 			}
 			logger.DEBUG.Printf("resp router:>> %v; jsonStr>> %v", dpkg.Route, string(dpkg.Payload))
 		} else {
 			fmt.Println("no pkg belong")
 		}
-		return true
-	})
+		return
+	}
+	//})
 }
 
 func decodeResp(_ string, _ uint16, rec *package_coder.RawRecv) (pkgId uint64, u *BackendMsg) {

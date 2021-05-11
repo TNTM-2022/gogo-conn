@@ -38,6 +38,11 @@ class User extends EventEmitter { // 如果整个过程出错, 记得直接 emit
         }
     }
 
+    async notify(p, msg) {
+            let k = new Koi.Package(p, msg, this.pomelo)
+            k.socket.notify(k.path, k.req)
+    }
+
     async listen(router, cb) {
         if (cb) {
             this.pomelo.on(router, cb);

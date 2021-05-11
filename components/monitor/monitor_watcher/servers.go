@@ -221,8 +221,12 @@ func add(serv types.RegisterInfo) {
 					if msg.Sid == 0 {
 						continue
 					}
+					fmt.Println("mtype .>>", msg.MType)
 					logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
-					pkgId := client.GetReqId()
+					var pkgId int64
+					if msg.PkgID > 0 {
+						pkgId = client.GetReqId()
+					}
 
 					p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
 					if p == nil {
