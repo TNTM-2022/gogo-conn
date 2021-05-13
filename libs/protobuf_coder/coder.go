@@ -8,7 +8,7 @@ import (
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
 	"go-connector/logger"
-	"log"
+	"go.uber.org/zap"
 	"strings"
 	"sync"
 )
@@ -21,10 +21,14 @@ func UpdateProto(path string) {
 	p := protoparse.Parser{}
 	fds, err := p.ParseFiles(path)
 	if err != nil {
-		fmt.Println("err32", err)
+		logger.ERROR.Println("parse proto file when updating", zap.Error(err))
 		return
 	}
-	fd := fds[0]
+	fd := fds[0] // 会不会有多个文件？
+	if len(fds) > 1 {
+		//todo 疑似存在多个文件
+		fmt.Println("proto fds len:", len(fds))
+	}
 
 	namespace := fd.GetPackage()
 
@@ -38,24 +42,24 @@ func UpdateProto(path string) {
 		globalPushProtoMap.Store(namespace, fd)
 
 	} else {
-		fmt.Println("wrong proto file")
+		logger.ERROR.Println("wrong proto file name, should ends with .res.proto/.req.proto/.push.proto", zap.String("current name", path))
 		return
 	}
 
-	log.Printf("proto 文件初始化 namespace=> %s; isNil=>%s", namespace, fd.GetName())
+	logger.INFO.Println("proto file init done", zap.String("nameSpace", namespace))
 }
 
 func getNamesace(p string) string {
 	s := strings.Split(p, ".")
-	//log.Println("getNamespace", s[0:len(s)-1])
-	return strings.Join(s[0:len(s)-1], ".")
+	ss := strings.Join(s[0:len(s)-1], ".")
+	logger.DEBUG.Println("protobuf,coder,getNamespace", "get namespace", zap.String("namespace", ss))
+	return ss
 }
 
 func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 	namespace := getNamesace(messageName)
 	var fd *desc.FileDescriptor
 	if isPush {
-
 		_fd, ok := globalPushProtoMap.Load(namespace)
 		if !ok {
 			return nil, nil
@@ -70,13 +74,13 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 	}
 
 	if fd == nil {
-		logger.DEBUG.Println("protobuf no fd", namespace, isPush)
+		logger.DEBUG.Println("protobuf,coder,push,resp", "protobuf no fd", zap.String("namespace", namespace), zap.Bool("isPush", isPush))
 		return nil, nil
 	}
-	logger.DEBUG.Printf("json2pb; namespace=> %s; messageName=> %s", namespace, messageName, string(jsonStr))
+	logger.DEBUG.Println("protobuf,coder,push,resp", "json2pb", zap.String("namespace", namespace), zap.String("route", messageName), zap.String("json str", string(jsonStr)))
 	msg := fd.FindMessage(messageName)
 	if msg == nil {
-		fmt.Println("no msg", messageName)
+		logger.ERROR.Println("cannot find namespace in pb", zap.String("namespace", messageName))
 		return nil, nil
 	}
 	dymsg := dynamic.NewMessage(msg)
@@ -86,25 +90,15 @@ func JsonToPb(messageName string, jsonStr []byte, isPush bool) ([]byte, error) {
 
 	err = dymsg.UnmarshalJSONPB(&unmarshaler, jsonStr)
 	if err != nil {
-		fmt.Println("UnmarshalJSONPB error", err)
+		logger.ERROR.Println("UnmarshalJSONPB failed", zap.Error(err))
 		return nil, err
 	}
 
-	//dymsg.ConvertTo(a)
-	//any, err := googleAnyPb.New(a)
-	//any, err := anypb.New(*dymsg)
 	any, err := dymsg.Marshal()
-
-	//googleProto.Marshal(dymsg.ProtoMessage())
-	//any, err := googleAnypb.New(dymsg)
-	//any, err := ptypes.MarshalAny(dymsg)
 	if err != nil {
-		fmt.Println(err, "err")
+		logger.ERROR.Println("dymsg marshal failed", zap.Error(err))
 		return nil, err
 	}
-	//fmt.Println(any.Value)
-
-	//return any.Value, nil
 	return any, nil
 }
 
@@ -127,12 +121,12 @@ func PbToJson(messageName string, protoData []byte) ([]byte, error) {
 
 	err := githubProto.Unmarshal(protoData, dymsg)
 	if err != nil {
-		log.Println(err)
+		logger.ERROR.Println("protobuf to dynamic msg unmarshal failed", zap.Error(err))
 		return protoData, nil
 	}
 	jsonByte, err := dymsg.MarshalJSON()
 	if err != nil {
-		log.Println(err)
+		logger.ERROR.Println("dynamic msg marshal to json failed", zap.Error(err))
 		return protoData, nil
 	}
 	return jsonByte, err

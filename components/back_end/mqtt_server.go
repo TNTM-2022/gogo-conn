@@ -10,8 +10,10 @@ import (
 	mqtt "go-connector/libs/mqtt_server"
 	"go-connector/libs/package_coder"
 	"go-connector/logger"
+	"go.uber.org/zap"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"sync"
 )
@@ -23,10 +25,10 @@ func init() {
 	if config.MqttServerPort > 0 {
 		p = fmt.Sprintf("%v", config.MqttServerPort)
 	}
-	fmt.Println(*config.MqttServerHost, p, fmt.Sprintf("%v:%v", *config.MqttServerHost, p))
 	err := s.New(fmt.Sprintf("%v:%v", *config.MqttServerHost, p))
 	if err != nil {
-		log.Panicln(err)
+		logger.ERROR.Println("mqtt server start failed", zap.Error(err))
+		os.Exit(-1)
 	}
 }
 
@@ -54,7 +56,7 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 
 	h, p, err := net.SplitHostPort(s.Addr().String())
 	port, _ := strconv.ParseInt(p, 10, 32)
-	logger.DEBUG.Println("mqtt server =>>>", h, p, err, s.Addr(), port)
+	logger.DEBUG.Println("backend,mqtt_server", "mqtt start ==>>", zap.String("host", h), zap.String("_port", p), zap.Error(err), zap.Int64("port", port), zap.String("addr", s.Addr().String()))
 	config.MqttServerPort = int(port)
 	if err != nil {
 		log.Panicln(err)

@@ -5,6 +5,7 @@ import (
 	paho "github.com/eclipse/paho.mqtt.golang"
 	cmap "github.com/orcaman/concurrent-map"
 	"go-connector/logger"
+	"go.uber.org/zap"
 	"log"
 	"math"
 	"sync"
@@ -116,12 +117,12 @@ func (m *MQTT) Start() {
 	log.Printf("Starting MQTT client on tcp://%s:%v with Prefix:%v, Persistence:%v, OrderMatters:%v, KeepAlive:%v, PingTimeout:%v, QOS:%v", m.Host, m.Port, "", true, m.Order, m.KeepAliveSec, m.PingTimeoutSec, 1)
 	t := m.client.Connect()
 	t.Wait() //Timeout(time.Second * 2) // pinus 问题， 没有 connack确认。 game-server/node_modules/pinus-rpc/dist/lib/rpc-server/acceptors/mqtt-acceptor.js 44L。 client.connack({ returnCode: 0 });
-	logger.ERROR.Println("error ", t.Error())
+	logger.ERROR.Println("mqtt client connect error", zap.Error(t.Error()))
 	if t.Error() != nil {
 		log.Printf("cannot connect to %v server;  mqtt monitor timeout. %v:%v \n", m.ClientID, m.Host, m.Port)
 		m.Stop(1)
 	}
-	logger.DEBUG.Println("mqtt started??")
+	logger.DEBUG.Println("mqtt_client,monitor_client,servers", "mqtt client connected!!")
 }
 
 func (m *MQTT) reconnectHandler(_ paho.Client, opts *paho.ClientOptions) {
@@ -154,7 +155,7 @@ func (m *MQTT) connectHandler(_ paho.Client) {
 func (m *MQTT) Publish(topic string, message []byte, qos byte, _async bool) {
 	token := m.client.Publish(topic, qos, false, message)
 	if token.Error() != nil {
-		logger.ERROR.Println("publish error ", token.Error(), m.client.IsConnectionOpen())
+		logger.ERROR.Println("publish error", zap.Error(token.Error()), zap.Bool("mqtt_client is connected", m.client.IsConnectionOpen()))
 	}
 	if !_async {
 		token.Wait()

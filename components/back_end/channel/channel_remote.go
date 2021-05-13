@@ -7,22 +7,22 @@ import (
 	"go-connector/libs/package_coder"
 	"go-connector/libs/pomelo_coder"
 	"go-connector/logger"
-	"log"
+	"go.uber.org/zap"
 	"strconv"
 )
 
 func PushMessage(rec *package_coder.RawRecv) (pkgId uint64, error string) {
 	userIds, pkgId, s := decodePushMsg(rec)
 	if len(userIds) == 0 {
-		global.SidFrontChanStore.IterCb(func(sid string, v interface{}) {
+		global.SidFrontChanStore.IterCb(func(sid string, v interface{}) { // broadcast
 			if vv, ok := v.(chan package_coder.BackendMsg); ok {
 				select {
 				case vv <- *s:
 				default:
-					log.Printf("cannot write in. %v", sid)
+					logger.ERROR.Println("can not write in user channel", zap.String("session_id", sid))
 				}
 			} else {
-				log.Printf("no sid chan ok, %v", sid)
+				logger.ERROR.Println("user channel is not ready when broadcast", zap.String("session_id", sid))
 			}
 		})
 	} else {
@@ -34,7 +34,7 @@ func PushMessage(rec *package_coder.RawRecv) (pkgId uint64, error string) {
 			}
 			sid, ok := global.GetSidByUid(uid)
 			if !ok {
-				fmt.Printf("no uid/sid found; uid:%v\n", uid)
+				logger.ERROR.Println("no uid/sid found when push msg", zap.Uint32("userId", uid))
 				notFoundId = append(notFoundId, uid)
 				continue
 			}
@@ -43,7 +43,7 @@ func PushMessage(rec *package_coder.RawRecv) (pkgId uint64, error string) {
 					select {
 					case vv <- *s:
 					default:
-						log.Printf("cannot write in. %v", uid)
+						logger.ERROR.Println("cannot write msg into user channel", zap.Uint32("userId", uid))
 						failedId = append(failedId, uid)
 					}
 				}
@@ -63,7 +63,7 @@ func decodePushMsg(rec *package_coder.RawRecv) (userIds []uint32, pkgId uint64, 
 		um.Route, userIds, um.Payload, um.Opts = handlePushOrBroad(rec.Msg.Args)
 		um.MType = pomelo_coder.Message["TYPE_PUSH"]
 		if um.Route == "" {
-			fmt.Println("no route; skip", userIds)
+			logger.DEBUG.Println("back_end,decode_push_msg,push_msg", "no route, skip", zap.String("userids", fmt.Sprintf("%v", userIds)))
 			return
 		}
 	}
@@ -84,15 +84,16 @@ func handlePushOrBroad(b []json.RawMessage) (route string, userIds []uint32, cc 
 
 	var handleType MsgOptions
 	if e := json.Unmarshal(b[len(b)-1], &handleType); e != nil {
-		fmt.Println("error", e, b[len(b)-1])
+		//fmt.Println("error", e, b[len(b)-1])
+		logger.ERROR.Println("json.unmarshal route error", zap.Error(e), zap.Binary("route", b[len(b)-1]))
 	}
 	if handleType.IsPush {
 		if err := json.Unmarshal(b[2], &userIds); err != nil {
-			logger.ERROR.Println(err)
+			logger.ERROR.Println("push msg json.unmarshal error", zap.Error(err))
 		}
 	}
 	if err := json.Unmarshal(b[0], &route); err != nil {
-		fmt.Println("error:", err)
+		logger.ERROR.Println("json.unmarshal route error", zap.Error(err))
 		return
 	}
 	cc = b[1]

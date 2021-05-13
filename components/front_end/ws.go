@@ -11,6 +11,7 @@ import (
 	libPomeloCoder "go-connector/libs/pomelo_coder"
 	libProtobufCoder "go-connector/libs/protobuf_coder"
 	"go-connector/logger"
+	"go.uber.org/zap"
 	"log"
 	"net"
 	"net/http/pprof"
@@ -29,7 +30,7 @@ func handleReq(pomeloCoder *libPomeloCoder.Coder, buf []byte, sid uint32) packag
 	// protobuf decode
 	buf, err := libProtobufCoder.PbToJson(dMsg.Route, dMsg.Body)
 	if err != nil {
-		log.Println("empty return", err)
+		logger.ERROR.Println("empty return", zap.Error(err))
 		return package_coder.BackendMsg{}
 	}
 
