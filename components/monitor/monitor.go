@@ -15,7 +15,7 @@ import (
 	"go-connector/global"
 	mqtt "go-connector/libs/mqtt_client"
 	"go-connector/logger"
-	"log"
+	"go.uber.org/zap"
 	"os"
 	"sync"
 )
@@ -24,8 +24,8 @@ func StartMonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync
 	defer wg.Done()
 
 	client := mqtt.CreateMQTTClient(&mqtt.MQTT{
-		Host:            "127.0.0.1",
-		Port:            "3005",
+		Host:            cfg.MasterHost,
+		Port:            cfg.MasterPort,
 		ClientID:        fmt.Sprintf("monitor-%v", *cfg.ServerID),
 		SubscriptionQos: 1,
 		Persistent:      true,
@@ -98,20 +98,19 @@ func doRegisterServer(mqttClient *mqtt.MQTT) {
 	switch mqttClient.IsReconnect() {
 	case false:
 		firstConnectCb(mqttClient, regStr)
-		logger.DEBUG.Println("first connect")
+		logger.DEBUG.Println("monitor,doRegister", "first reg server to master")
 	case true:
 		//regInfo.Token = ""
 		//regStr, _ := json.Marshal(regInfo)
 		reconnectCb(mqttClient, regStr)
-		logger.DEBUG.Println("re connect")
-
+		logger.DEBUG.Println("monitor,doRegister", "redo reg server to master")
 	}
 }
 
 func firstConnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 	// 注册server， 携带 token
 	mqttClient.Publish("register", regStr, 0, false) // 直接发送 lib/monitor/monitorAgent line 151
-	log.Println("monitor client regist done")
+	logger.DEBUG.Println("monitor,doRegister", "reg server to master")
 
 	subServer := struct {
 		Action   string `json:"action"`
@@ -123,7 +122,7 @@ func firstConnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 	subStr, _ := json.Marshal(subServer)
 	Request(mqttClient, "monitor", "__masterwatcher__", subStr, func(err string, data []byte) {
 		if err != "" {
-			fmt.Println("????", err)
+			logger.ERROR.Println("failed to send request to master", zap.String("error", err))
 		}
 		monitAllServerMap := DecodeAllServerMonitorInfo(data)
 		serv := make([]RegisterInfo, 0, len(monitAllServerMap))
@@ -135,22 +134,18 @@ func firstConnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 		for _, s := range serv {
 			monitor_watcher.ConnectToServer(s)
 		}
-		//mointor_watcher.AddServers(serv) // todo 添加server
-		logger.DEBUG.Println("???", serv)
 	})
 
-	logger.INFO.Println(string(regStr), string(subStr))
-
-	logger.DEBUG.Println("+++ monitor start monitor")
+	logger.DEBUG.Println("monitor,doRegister", "monitor started", zap.Strings("reg info", []string{string(regStr), string(subStr)}))
 }
 func reconnectCb(mqttClient *mqtt.MQTT, regStr []byte) {
 	mqttClient.Publish("reconnect", regStr, 0, false) // 直接发送 lib/monitor/monitorAgent line 151
-	logger.DEBUG.Println("monitor registed")
+	logger.DEBUG.Println("monitor,doRegister", "monitor reg done after reconnection")
 
 }
 
 func onPublishCb(mqttClient *mqtt.MQTT, m paho.Message) {
-	logger.DEBUG.Println("<<< publish cb ", m.Topic(), string(m.Payload()))
+	logger.DEBUG.Println("monitor", "handle publish cb", zap.String("topic", m.Topic()), zap.String("payload", string(m.Payload())))
 	switch m.Topic() {
 	case "register":
 		handleRegisterTopic(m)
@@ -158,15 +153,15 @@ func onPublishCb(mqttClient *mqtt.MQTT, m paho.Message) {
 		handleMonitorTopic(mqttClient, m)
 	case "connect":
 		{
-			logger.DEBUG.Println("connect")
+			logger.DEBUG.Println("monitor", "connect")
 		}
 	case "reconnect_ok":
 		{
-			logger.DEBUG.Println("reconnected")
+			logger.DEBUG.Println("monitor", "reconnected")
 		}
 	default:
 		{
-			logger.DEBUG.Println("unhandled Topic++++", m.Topic(), string(m.Payload()))
+			logger.ERROR.Println("unhandled Topic", zap.String("topic", m.Topic()), zap.String("payload", string(m.Payload())))
 		}
 	}
 
@@ -174,11 +169,11 @@ func onPublishCb(mqttClient *mqtt.MQTT, m paho.Message) {
 
 // todo 多 master 机制
 func handleRegisterTopic(m paho.Message) {
-	log.Println("monitor server registed to master")
+	logger.DEBUG.Println("monitor", "monitor server reg to master")
 	var res RegisterResp
 	e := json.Unmarshal(m.Payload(), &res)
 	if e != nil {
-		logger.ERROR.Println(e)
+		logger.ERROR.Println("parse reg response failed", zap.Error(e))
 	}
 	if res.Msg != "ok" {
 		logger.DEBUG.Println("register >> quit >>", res.Msg)
@@ -196,14 +191,15 @@ func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 		"nodeInfo":    false,
 	}
 	if ignoreModuleLog[monit.ModuleID] {
-		log.Println(">>> monit.Signal", monit.Body.Signal, " >>> monit.Action", monit.Body.Action, ">>> monit.Command", monit.Command, string(m.Payload()))
+		logger.DEBUG.Println("monitor", fmt.Sprintf("monit.Signal:%v; monit.Action:%v; monit.Command:%v;", monit.Body.Signal, monit.Body.Action, monit.Command), zap.String("payload", string(m.Payload())))
 	}
 	if monit.Command != "" {
-		logger.ERROR.Println("not support command", monit.Command)
+		logger.ERROR.Println("not support command", zap.String("command", monit.Command))
 		return
 	}
 	if monit.RespId > 0 {
-
+		logger.ERROR.Println("not support respId>0", zap.Int64("respId", monit.RespId))
+		return
 	}
 	var req, respErr, respBody, notify []byte
 	switch monit.ModuleID {
@@ -235,7 +231,7 @@ func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 		}
 	case "profiler":
 		{
-			logger.DEBUG.Println("profiling coming")
+			logger.DEBUG.Println("monitor", "profiling coming soon")
 			return
 		}
 	case "scripts":
@@ -252,13 +248,13 @@ func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 		}
 	default:
 		{
-			log.Printf(" *************    receive unknow moduleId: %v, %v", monit.ModuleID, string(m.Payload()))
+			logger.ERROR.Println("receive unknow moduleId", zap.String("moduleId", monit.ModuleID), zap.String("payload", string(m.Payload())))
 		}
 	}
 
 	if req != nil { // todo 应该不存在
 		Request(mqttClient, "monitor", monit.ModuleID, req, func(err string, data []byte) {
-			log.Println("request get a response", string(err), string(data))
+			logger.INFO.Println("get a response after request to master", zap.String("error", err), zap.String("data", string(data)))
 		})
 	} else if notify != nil {
 		Notify(mqttClient, "monitor", monit.ModuleID, notify)
@@ -275,7 +271,7 @@ func DecodeAllServerMonitorInfo(d []byte) MonitorServers {
 		d = []byte(ss)
 	}
 	if e := json.Unmarshal(d, &mm); e != nil {
-		logger.ERROR.Println(mm, e)
+		logger.ERROR.Println("decode server monitor info array failed", zap.Error(e))
 	}
 	return mm
 }
@@ -287,7 +283,7 @@ func DecodeMonitor(d []byte) types.Monitor {
 		d = []byte(ss)
 	}
 	if e := json.Unmarshal(d, &mm); e != nil {
-		logger.ERROR.Println(mm, e)
+		logger.ERROR.Println("decode server monitor info failed", zap.Error(e))
 	}
 	return mm
 }

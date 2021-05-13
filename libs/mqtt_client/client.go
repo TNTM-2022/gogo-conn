@@ -46,7 +46,7 @@ type MQTT struct {
 	ServerType string
 	Quit       chan bool
 
-	t int
+	t int // start time
 }
 
 func initMQTTClientOps(client *MQTT) (*paho.ClientOptions, error) {
@@ -83,7 +83,7 @@ func CreateMQTTClient(mqttClient *MQTT) *MQTT {
 	mqttClient.t = time.Now().Second()
 	opts, err := initMQTTClientOps(mqttClient)
 	if err != nil {
-		log.Fatalf("unable to configure MQTT client: %s", err)
+		logger.ERROR.Println("unable to configure MQTT client", zap.Error(err), zap.String("host", mqttClient.Host), zap.String("port", mqttClient.Port), zap.String("serverId", mqttClient.ClientID))
 	}
 	mqttClient.clientOpts = opts
 
@@ -97,18 +97,15 @@ func (m *MQTT) SetCallbacks(OnConnectCb func(mqtt *MQTT), OnPublishCb func(clien
 	}
 }
 func (m *MQTT) SetReconnectCb(f func(mqtt *MQTT)) {
-	fmt.Println("set reconnect cb", m.ClientID)
 	if m.onReconnectCb == nil {
 		m.onReconnectCb = f
 	}
 }
 func (m *MQTT) Stop(t time.Duration) {
-	//m.Closing = true
-	fmt.Println("close", m.ClientID)
+	defer logger.DEBUG.Println("mqtt", "disconnect", zap.String("serverId", m.ClientID))
 	close(m.Quit)
 	time.Sleep(t)
 	m.client.Disconnect(1)
-	defer fmt.Printf("disconnect= %v", m.ClientID)
 }
 func (m *MQTT) Start() {
 	pahoClient := paho.NewClient(m.clientOpts)
@@ -117,22 +114,22 @@ func (m *MQTT) Start() {
 	log.Printf("Starting MQTT client on tcp://%s:%v with Prefix:%v, Persistence:%v, OrderMatters:%v, KeepAlive:%v, PingTimeout:%v, QOS:%v", m.Host, m.Port, "", true, m.Order, m.KeepAliveSec, m.PingTimeoutSec, 1)
 	t := m.client.Connect()
 	t.Wait() //Timeout(time.Second * 2) // pinus 问题， 没有 connack确认。 game-server/node_modules/pinus-rpc/dist/lib/rpc-server/acceptors/mqtt-acceptor.js 44L。 client.connack({ returnCode: 0 });
-	logger.ERROR.Println("mqtt client connect error", zap.Error(t.Error()))
 	if t.Error() != nil {
-		log.Printf("cannot connect to %v server;  mqtt monitor timeout. %v:%v \n", m.ClientID, m.Host, m.Port)
+		logger.ERROR.Println("cannot connect to %v server", zap.String("host", m.Host), zap.String("port", m.Port), zap.String("serverId", m.ClientID))
 		m.Stop(1)
 	}
 	logger.DEBUG.Println("mqtt_client,monitor_client,servers", "mqtt client connected!!")
 }
 
 func (m *MQTT) reconnectHandler(_ paho.Client, opts *paho.ClientOptions) {
-	fmt.Printf("reconnecting to %v server ... %v %v\n", opts.ClientID, time.Now().Second(), m.IsConnectionOpen())
+	logger.INFO.Println("reconnecting to server", zap.String("serverId", opts.ClientID), zap.Int("second", time.Now().Second()))
 	if m.onReconnectCb != nil {
 		m.onReconnectCb(m)
 	}
 }
 func (m *MQTT) connectionLostHandler(_ paho.Client, err error) {
-	log.Printf("MQTT client lost connection: %v", err)
+	logger.ERROR.Println("MQTT client lost connection", zap.Error(err))
+
 	m.disconnected = true
 }
 func (m *MQTT) IsReconnect() bool {
@@ -145,7 +142,7 @@ func (m *MQTT) IsConnected() bool {
 	return m.client != nil && m.client.IsConnected()
 }
 func (m *MQTT) connectHandler(_ paho.Client) {
-	log.Printf("MQTT client connected. %v %v", m.ClientID, m.t)
+	logger.DEBUG.Println("mqtt,mqtt_client", "MQTT client connected.", zap.String("serverId", m.ClientID), zap.Int("start tick", m.t))
 	m.connectedNum++
 	if m.OnConnectCb != nil {
 		m.OnConnectCb(m)

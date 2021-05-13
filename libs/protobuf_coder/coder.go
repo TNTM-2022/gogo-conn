@@ -9,6 +9,7 @@ import (
 	"github.com/jhump/protoreflect/dynamic"
 	"go-connector/logger"
 	"go.uber.org/zap"
+	"log"
 	"strings"
 	"sync"
 )
@@ -46,7 +47,7 @@ func UpdateProto(path string) {
 		return
 	}
 
-	logger.INFO.Println("proto file init done", zap.String("nameSpace", namespace))
+	log.Println("proto file init done", "nameSpace:", namespace)
 }
 
 func getNamesace(p string) string {

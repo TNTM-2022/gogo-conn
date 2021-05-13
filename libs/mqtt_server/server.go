@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"go-connector/logger"
+	"go.uber.org/zap"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -130,10 +132,9 @@ func (s *Server) New(addr string) error {
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
-
 	defer func() {
-		fmt.Println("mqtt server closed", conn.Close())
-
+		e := conn.Close()
+		logger.DEBUG.Println("mqtt_server", "mqtt server closing", zap.Error(e))
 	}()
 
 	clientID, err := s.handleConnect(conn)
@@ -249,7 +250,7 @@ func writeConn(p packets.ControlPacket, conn net.Conn) error {
 		return err
 	}
 	if n, e := conn.Write(buf.Bytes()); e != nil {
-		fmt.Printf("write to conn, n=%v, err=%v\n", n, e)
+		logger.ERROR.Println("write to conn failed", zap.Error(e), zap.Int("num", n))
 	}
 
 	return nil

@@ -1,9 +1,11 @@
 package monitor_log
 
-import "log"
+import (
+	"go-connector/logger"
+)
 
 func MonitorHandler() (req, respBody, respErr, notify []byte) {
-	log.Println("monitorLog no implement.")
-	respBody = []byte("{\"logfile\": \"not implement\", \"dataArray\": []}")
+	logger.INFO.Println("monitorLog no implement.")
+	respBody = []byte(`{"logfile": "not implement", "dataArray": []}`)
 	return
 }

@@ -22,6 +22,9 @@ var (
 	//WsServerPort    = 12345
 	Pid       = os.Getpid()
 	startTick = time.Now()
+
+	MasterHost = "127.0.0.1"
+	MasterPort = "3005"
 )
 
 func init() {

@@ -2,8 +2,9 @@ package online_user
 
 import (
 	"encoding/json"
-	"fmt"
 	"go-connector/global"
+	"go-connector/logger"
+	"go.uber.org/zap"
 )
 
 type OnlineUserResp struct {
@@ -21,7 +22,7 @@ func MointorHandler(serverId string) (req, respBody, respErr, notify []byte) {
 	}
 	notify, err := json.Marshal(res)
 	if err != nil {
-		fmt.Println("err: ", err)
+		logger.ERROR.Println("json.marshal error", zap.Error(err))
 	}
 	return
 }

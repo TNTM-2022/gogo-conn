@@ -47,7 +47,7 @@ func replyResponse(conn *mqtt.Conn, pkgId uint64, err string) {
 		fmt.Println(err)
 	}
 	if e := conn.Reply(pkgIds); e != nil {
-		log.Println("reply error =", e)
+		logger.ERROR.Println("reply error", zap.Error(e))
 	}
 }
 func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGroup) {
@@ -90,7 +90,6 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 					pkgId, userId, settings := session.DecodePushAll(&rec)
 					err := session.DoSave(userId, settings)
 					replyResponse(conn, pkgId, err)
-					fmt.Println("push all... ")
 					return
 				}
 			case "push":
@@ -98,7 +97,6 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 					pkgId, userId, settings := session.DecodePush(&rec)
 					err := session.DoSave(userId, settings)
 					replyResponse(conn, pkgId, err)
-					fmt.Println("push... ")
 					return
 				}
 				// todo 删除键值

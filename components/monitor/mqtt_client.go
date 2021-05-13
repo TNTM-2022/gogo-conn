@@ -6,7 +6,7 @@ import (
 	paho "github.com/eclipse/paho.mqtt.golang"
 	"go-connector/libs/mqtt_client"
 	"go-connector/logger"
-	"log"
+	"go.uber.org/zap"
 )
 
 func Request(m *mqtt_client.MQTT, topic, moduleId string, msg []byte, cb mqtt_client.CallBack) {
@@ -73,7 +73,7 @@ func OnPublishHandler(m *mqtt_client.MQTT, client paho.Client, msg paho.Message)
 			d = []byte(ss)
 		}
 		if e := json.Unmarshal(d, &mm); e != nil {
-			logger.ERROR.Println(mm, e)
+			logger.ERROR.Println("decode monitor resp failed", zap.Error(e))
 		}
 		if mm.RespId > 0 {
 			respId := fmt.Sprintf("%v", mm.RespId)
@@ -84,13 +84,13 @@ func OnPublishHandler(m *mqtt_client.MQTT, client paho.Client, msg paho.Message)
 				if fn, ok := v.(mqtt_client.CallBack); ok {
 					go fn(mm.Error, mm.Body)
 				} else {
-					log.Println("callback fn error, %v, %v", v, respId)
+					logger.ERROR.Println("callback fn error")
 				}
 				return true
 			}) {
 				return true
 			} else {
-				logger.ERROR.Printf("unknown respId = %v", mm.RespId)
+				logger.ERROR.Println("unknown respId", zap.Int64("respId", mm.RespId))
 			}
 		}
 	}

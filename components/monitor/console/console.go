@@ -3,11 +3,11 @@ package console
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/shirou/gopsutil/v3/process"
 	cfg "go-connector/config"
 	"go-connector/global"
-	"log"
+	"go-connector/logger"
+	"go.uber.org/zap"
 	"os"
 	"runtime"
 	"time"
@@ -54,7 +54,7 @@ func MonitorHandler(signal string, quitFn context.CancelFunc, blackList []string
 		}
 	case "addCron", "removeCron", "restart": // todo restart 有返回值，实现 restart
 	default:
-		log.Printf("receive error signal\n")
+		logger.ERROR.Println("receive error signal", zap.String("signal", signal))
 	}
 	return
 }
@@ -77,7 +77,7 @@ func list() []byte {
 	if proc, err := process.NewProcess(int32(cfg.Pid)); err == nil {
 		mem, err := proc.MemoryInfo()
 		if err != nil {
-			fmt.Println("error=> ", err)
+			logger.ERROR.Println("get process memory info failed", zap.Error(err))
 		}
 		var memStats runtime.MemStats
 		runtime.ReadMemStats(&memStats)
@@ -89,7 +89,7 @@ func list() []byte {
 
 	result, e := json.Marshal(monitInf)
 	if e != nil {
-		log.Println("e=> ", e)
+		logger.ERROR.Println("json.marshal monitor info failed", zap.Error(e))
 	}
 	return result
 }

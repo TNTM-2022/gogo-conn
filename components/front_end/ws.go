@@ -12,10 +12,8 @@ import (
 	libProtobufCoder "go-connector/libs/protobuf_coder"
 	"go-connector/logger"
 	"go.uber.org/zap"
-	"log"
 	"net"
 	"net/http/pprof"
-	"reflect"
 	"strings"
 )
 
@@ -76,7 +74,7 @@ func handleSend(bMsg package_coder.BackendMsg) []byte {
 		mType = libPomeloCoder.Message["TYPE_RESPONSE"]
 		isPush = false
 	default:
-		fmt.Println("多出来一个 mType", bMsg.MType, bMsg)
+		logger.ERROR.Println("reserved mType", zap.Uint8("mType", bMsg.MType), zap.String("route", bMsg.Route))
 		return nil
 	}
 
@@ -98,15 +96,15 @@ func handleSend(bMsg package_coder.BackendMsg) []byte {
 
 func judgeWsConnError(err error) {
 	if websocket.IsUnexpectedCloseError(err) {
-		fmt.Println("IsUnexpectedCloseError")
+		logger.DEBUG.Println("front_end,ws,client", "client unexpected close error", zap.Error(err))
 		return
 	}
 	if websocket.IsCloseError(err) {
-		fmt.Println("IsCloseError")
+		logger.DEBUG.Println("front_end,ws,client", "client close error", zap.Error(err))
 		return
 	}
 	if v, ok := err.(net.Error); ok {
-		fmt.Println("error net work;", v.Timeout(), v.Temporary(), v.Error(), reflect.TypeOf(err))
+		logger.DEBUG.Println("front_end,ws,client", "network error", zap.Bool("isTimeout", v.Timeout()), zap.Bool("isTemporary", v.Temporary()), zap.String("error", v.Error()))
 		return
 	}
 }
@@ -130,7 +128,7 @@ func ws(c echo.Context) error {
 
 	session := global.CreateSession(sid)
 	if !session.Bind(sid) {
-		fmt.Println("Bind userid error")
+		logger.INFO.Println("userId bind error", zap.Uint32("sessionId", sid))
 		return nil
 	}
 	defer session.Destroy()
@@ -138,8 +136,8 @@ func ws(c echo.Context) error {
 	MsgFront := make(chan package_coder.BackendMsg, 100)
 	defer func() {
 		close(MsgFront)
-		for m := range MsgFront {
-			fmt.Println("msg lost;", m)
+		for range MsgFront {
+			logger.DEBUG.Println("front_end,ws,send_msg,req,res,push", "msg lost for cleaning")
 		}
 	}()
 	global.SidFrontChanStore.Set(_sid, MsgFront)
@@ -148,6 +146,7 @@ func ws(c echo.Context) error {
 	go func() {
 		defer func() {
 			_running = false
+			fmt.Println("close 1")
 		}()
 		for _running {
 			// Write
@@ -160,9 +159,8 @@ func ws(c echo.Context) error {
 					if b == nil {
 						return
 					}
-					//fmt.Println("msg push", string(b))
 					if err := ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
-						fmt.Println("msg push closed>>2", err)
+						logger.ERROR.Println("msg push channel closed", zap.Error(err))
 						return
 					}
 				}
@@ -187,7 +185,7 @@ func ws(c echo.Context) error {
 					case libPomeloCoder.Package["TYPE_HANDSHAKE"]:
 						b := pomeloCoder.HandleHandshake()
 						if err := ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
-							fmt.Println("msg push closed>>handshake", err)
+							logger.ERROR.Println("ws handshake error", zap.Error(err))
 							return
 						}
 
@@ -198,24 +196,24 @@ func ws(c echo.Context) error {
 
 					case libPomeloCoder.Package["TYPE_HEARTBEAT"]:
 						// todo 要怎么处理
-						fmt.Println("TYPE_HEARTBEAT")
+						logger.DEBUG.Println("front_end,ws_heartbeat,ws", "heartbeat")
 
 					case libPomeloCoder.Package["TYPE_DATA"]:
 						{
 							backendMsg := handleReq(pomeloCoder, mm.Body, sid)
-							logger.DEBUG.Println("TYPE_DATA >> ", backendMsg.Route, string(backendMsg.Payload))
+							logger.DEBUG.Println("front_end,ws", "TYPE_DATA", zap.String("route", backendMsg.Route), zap.String("payload", string(backendMsg.Payload)))
 							serverType := strings.SplitN(backendMsg.Route, ".", 2)[0]
 							if v, ok := global.RemoteBackendTypeForwardChan.Get(serverType); ok {
 								if ch, ok := v.(chan package_coder.BackendMsg); ok {
 									select {
 									case ch <- backendMsg: // 会出现
 									default:
-										fmt.Println("写不进去")
+										logger.ERROR.Println("cannot write in backend forward channel")
 									}
 								}
 							} else {
 								// todo 请路径不存在, 增加全局 路径不存在拦截
-								fmt.Println("路径不存在")
+								logger.ERROR.Println("cannot find route", zap.String("route", backendMsg.Route), zap.String("serverType", serverType))
 							}
 						}
 					case libPomeloCoder.Package["TYPE_KICK"]:

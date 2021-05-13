@@ -1,7 +1,7 @@
 package monitor_watcher
 
 import (
-	"fmt"
+	"go-connector/logger"
 	"sync"
 )
 
@@ -80,7 +80,7 @@ func (t *taskHead) Push(v interface{}) (c chan interface{}) {
 	select {
 	case t.C <- true:
 	default:
-		fmt.Println("No push")
+		logger.DEBUG.Println("looper", "not push into looper")
 	}
 	return
 }

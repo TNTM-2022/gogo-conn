@@ -10,6 +10,7 @@ import (
 	"go-connector/libs/mqtt_client"
 	"go-connector/libs/package_coder"
 	"go-connector/logger"
+	"go.uber.org/zap"
 	"log"
 	"reflect"
 	"sync"
@@ -37,7 +38,7 @@ func init() {
 	go LP.Run(func(v interface{}) interface{} {
 		f, ok := v.(func())
 		if !ok {
-			fmt.Println("wrong func param type", reflect.TypeOf(v))
+			logger.ERROR.Println("wrong func param type", zap.String("type", reflect.TypeOf(v).String()))
 		}
 		if f != nil {
 			go f()
@@ -52,31 +53,26 @@ func MonitorHandler(action string, ss types.MonitorBody) (req, respBody, respErr
 	switch action {
 	case "addServer":
 		{
-			logger.DEBUG.Println("add server >>>>")
 			ConnectToServer(ss.Server)
-			logger.DEBUG.Println("add server  <<<<<")
 			respErr = json.RawMessage(`1`)
 		}
 	case "removeServer":
 		{
-			fmt.Println(ss)
 			if ss.ServerID == "" {
 				respErr = json.RawMessage(`0`)
 				respBody = json.RawMessage(`0`)
 				return
 			}
-			logger.DEBUG.Println("remove server .............")
 			removeServer(ss.ServerID)
 			respErr = json.RawMessage(`1`)
 			respBody = json.RawMessage(`1`)
 		}
 	case "replaceServer": // master 启动后， 重新同步信息； 防止出现 同名 但是不同端口 之类的事情发生
-		logger.DEBUG.Println("replace server .............")
 		replaceServer(ss.Servers)
 		respErr = json.RawMessage(`1`)
 		//respBody = json.RawMessage(`1`)
 	case "startOver":
-		logger.DEBUG.Println("start over .............")
+		logger.INFO.Println("start over .............")
 		respErr = json.RawMessage(`1`) // 全部启动了， 再发这个
 
 	}
@@ -84,13 +80,8 @@ func MonitorHandler(action string, ss types.MonitorBody) (req, respBody, respErr
 }
 
 func removeServer(serverId string) {
-	//<-LP.Push(func() {
-	//	fmt.Println("test", serverId)
-	//})
 	<-LP.Push(func() {
-		//fmt.Println("del >>>>>", serverId)
 		del(serverId)
-		//fmt.Println("del <<<<<", serverId)
 	})
 }
 
@@ -103,14 +94,16 @@ func del(serverId string) {
 		_serv = v
 		return true
 	}) {
-		fmt.Println("no exists server info")
+		logger.DEBUG.Println("monitor,monitor_watcher,remove_server", "cannot find server info", zap.String("serverId", serverId))
 		return
 	}
 	serv, _ := _serv.(*mqtt_client.MQTT)
 	//serv.Closing = true
 	serv.SetReconnectCb(func(m *mqtt_client.MQTT) {
-		fmt.Println("do reconnect cb", m.ClientID)
-
+		logger.DEBUG.Println("monitor,monitor_watcher,remove_server", "do reconnect cb", zap.String("serverId", serverId))
+		serv.SetReconnectCb(func(m *mqtt_client.MQTT) {
+			logger.ERROR.Println("client running illegal, client already called stop", zap.String("serverId", m.ClientID))
+		})
 		m.Stop(1)            // 都重连了， 没必要等待未处理完的报文
 		servOptLocker.Lock() // todo 最好移到 client 关闭回调里做， 那样 可以很好控制消息转发； 目前 只是停止转发后端， 至于断开，是由后端自行决定
 		defer servOptLocker.Unlock()
@@ -137,27 +130,25 @@ func del(serverId string) {
 				return true
 			})
 		}
-		fmt.Println("服务器 不重连--", serverTypeAllClosed, serverId)
+		logger.DEBUG.Println("monitor,monitor_watcher,remove_server", "not connect to server", zap.String("serverId", serverId), zap.Bool("serverTypeAllClosed", serverTypeAllClosed))
 	})
-	fmt.Println("remove server-- ", serverId)
+	logger.DEBUG.Println("monitor,monitor_watcher,remove_server", "remove server", zap.String("serverId", serverId))
+
 }
 
 func ConnectToServer(serv types.RegisterInfo) {
 	<-LP.Push(func() {
-		//fmt.Println("add >>>>>")
 		add(serv)
-		//fmt.Println("add <<<<<")
 	})
 }
 
 func add(serv types.RegisterInfo) {
-	fmt.Println(serv)
 	if *config.ServerType == serv.ServerType {
-		log.Println("skip init same type server", serv.ServerID)
+		log.Println("skip init same type server", zap.String("serverId", serv.ServerID))
 		return
 	}
 
-	logger.DEBUG.Println("server =>", serv)
+	logger.DEBUG.Println("monitor,monitor_watcher,add_server", "connect to server", zap.String("serverId", serv.ServerID))
 
 	client := mqtt_client.CreateMQTTClient(&mqtt_client.MQTT{
 		Host:       serv.Host,
@@ -169,7 +160,6 @@ func add(serv types.RegisterInfo) {
 	client.SetCallbacks(nil, func(c paho.Client, msg paho.Message) {
 		OnPublishHandler(client, c, msg)
 	})
-	//defer client.Stop()
 
 	// 初始化 serverType：chan  serverType：serverId：serverInfo
 	// todo 资源回收  如果撤掉了 * servertype 通道需要关闭
@@ -183,37 +173,36 @@ func add(serv types.RegisterInfo) {
 		oldServ, _ := oldV.(*mqtt_client.MQTT)
 		newServ, _ := newV.(*mqtt_client.MQTT)
 		if oldServ.Host == newServ.Host && oldServ.Port == newServ.Port && oldServ.ClientID == newServ.ClientID && oldServ.ServerType == newServ.ServerType {
-			fmt.Println("保持", oldServ.ClientID)
+			logger.DEBUG.Println("monitor,monitor_watcher,add_server", "still use old client", zap.String("serverId", oldServ.ClientID))
 			servExists = true
 			return oldV
 		}
 
 		v, _ := oldV.(*mqtt_client.MQTT)
 		go v.Stop(5)
-		logger.DEBUG.Println("关闭？？？？", v.ClientID)
+		logger.DEBUG.Println("monitor,monitor_watcher,add_server", "client stopping", zap.String("serverId", v.ClientID))
 		// todo 停止消息转发， 然后再停止server client
 		return newV
 	})
 	servOptLocker.Unlock()
 	if servExists {
-		fmt.Println("client lian le yijing ")
+		logger.DEBUG.Println("monitor,monitor_watcher,add_server", "client already connected", zap.String("serverId", client.ClientID))
 		return
 	}
 
 	go func(s types.RegisterInfo, client *mqtt_client.MQTT) {
 		client.Start()
-		log.Println("链接服务器", serv.ServerID, serv.ServerType, serv.ServerID, serv.Host, serv.Port, client.IsConnectionOpen())
+		log.Println("link to backend", serv.ServerID, serv.ServerType, serv.Host, serv.Port, client.IsConnectionOpen())
 		_forwardChan, ok := global.RemoteBackendTypeForwardChan.Get(s.ServerType)
 		if !ok {
-			log.Println("no found server in store.")
+			logger.ERROR.Println("no found server in store.", zap.String("sererType", s.ServerType))
 		}
 		forwardChan, _ := _forwardChan.(chan package_coder.BackendMsg)
-		fmt.Println("loop1", s.ServerID)
 		for {
 			select {
 			case <-client.Quit:
 				{
-					fmt.Println("close loop", s.ServerID)
+					logger.DEBUG.Println("rpc", "close loop", zap.String("backendId", s.ServerID))
 					return
 				}
 			case msg := <-forwardChan:
@@ -221,8 +210,7 @@ func add(serv types.RegisterInfo) {
 					if msg.Sid == 0 {
 						continue
 					}
-					fmt.Println("mtype .>>", msg.MType)
-					logger.DEBUG.Println(">>forward rpc to backend == ", s.Host, s.Port, s.ServerID, msg.ServerType)
+					logger.DEBUG.Println("req,notify,rpc", "forward rpc to backend", zap.String("backendId", s.ServerID))
 					var pkgId int64
 					if msg.PkgID > 0 {
 						pkgId = client.GetReqId()
@@ -230,12 +218,11 @@ func add(serv types.RegisterInfo) {
 
 					p := package_coder.Encode(pkgId, &msg) // 后端 wrap 组装 session
 					if p == nil {
-						log.Println("encoding skip...")
+						logger.ERROR.Println("package encoding skip")
 						continue
 					}
 
 					if !client.IsConnectionOpen() { // 如果server 关闭了 消息要重新推回去
-						fmt.Printf("client.IsConnectionOpen() = %v", false)
 						forwardChan <- msg
 						return
 					}
@@ -247,10 +234,9 @@ func add(serv types.RegisterInfo) {
 						Route:       msg.Route,
 					}) {
 						forwardChan <- msg
-						fmt.Println("remote closed.")
+						logger.ERROR.Println("send msg failed for remote closed")
 						return
 					}
-					logger.DEBUG.Println("rpc send ok", client.ClientID)
 				}
 			}
 		}
@@ -265,10 +251,9 @@ func replaceServer(serv map[string]types.RegisterInfo) {
 			if oldServ.IsConnectionOpen() {
 				break
 			}
-			fmt.Println("link to", oldServ.ClientID)
 			removeServer(oldServ.ClientID)
 		}
 		fmt.Println(i)
 	}
-	logger.DEBUG.Println("replace server done")
+	logger.DEBUG.Println("monitor,monitor_watcher,replace_server", "replace server done")
 }

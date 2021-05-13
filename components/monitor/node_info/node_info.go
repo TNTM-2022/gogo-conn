@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"github.com/shirou/gopsutil/v3/process"
 	"go-connector/config"
-	"log"
+	"go-connector/logger"
+	"go.uber.org/zap"
 	"runtime"
 	"strconv"
 	"time"
@@ -65,7 +66,7 @@ func MonitorHandler() (req, respBody, respErr, notify []byte) { // 进程的 ps 
 
 	notify, e := json.Marshal(n)
 	if e != nil {
-		log.Fatal(e)
+		logger.ERROR.Println("json.marshal error", zap.Error(e))
 	}
 	return
 

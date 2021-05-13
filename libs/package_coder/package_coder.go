@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-connector/global"
+	"go-connector/logger"
+	"go.uber.org/zap"
 )
 
 func Encode(pkgId int64, u *BackendMsg) []byte {
@@ -21,7 +23,7 @@ func Encode(pkgId int64, u *BackendMsg) []byte {
 
 	_session, ok := global.GetSessionBySid(u.Sid)
 	if !ok {
-		fmt.Println("no session found")
+		logger.ERROR.Println("no session found", zap.Uint32("userId", u.Sid))
 		return nil
 	}
 	session, _ := json.Marshal(_session)

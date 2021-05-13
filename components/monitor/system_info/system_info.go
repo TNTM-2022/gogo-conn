@@ -6,7 +6,8 @@ import (
 	"github.com/shirou/gopsutil/v3/load"
 	"github.com/shirou/gopsutil/v3/mem"
 	"go-connector/config"
-	"log"
+	"go-connector/logger"
+	"go.uber.org/zap"
 	"os"
 	"runtime"
 )
@@ -24,7 +25,7 @@ type sysInfoRespBody struct {
 	Cpus              int               `json:"cpus"`
 	NetworkInterfaces string            `json:"networkInterfaces"`
 	Versions          map[string]string `json:"versions"`
-	IOStat            json.RawMessage `json:"iostat"`
+	IOStat            json.RawMessage   `json:"iostat"`
 }
 type sysInfoResp struct {
 	ServerId string          `json:"serverId"`
@@ -55,7 +56,8 @@ func MointorHandler() (req, respBody, respErr, notify []byte) {
 		},
 	})
 	if e != nil {
-		log.Fatal(e)
+		logger.ERROR.Println("json.marshal error", zap.Error(e))
+		os.Exit(-1)
 	}
 	return
 }

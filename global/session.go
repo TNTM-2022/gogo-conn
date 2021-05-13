@@ -5,6 +5,8 @@ import (
 	"fmt"
 	concurrentMap "github.com/orcaman/concurrent-map"
 	"go-connector/config"
+	"go-connector/logger"
+	"go.uber.org/zap"
 	"sync"
 )
 
@@ -94,13 +96,14 @@ func CreateSession(sid uint32) SessionInterface {
 		},
 	}
 	sessions.Set(fmt.Sprintf("%v", sid), s)
+
 	return s
 }
 
 func (s *sessionType) Bind(uid uint32) bool {
 	s.Uid = uid
 	if !sessions.Has(fmt.Sprintf("%v", s.Sid)) {
-		fmt.Println("no found session")
+		logger.ERROR.Println("cannot find session", zap.Uint32("sessionId", s.Sid))
 		return false
 	}
 	uidSid.Set(fmt.Sprintf("%v", uid), s.Sid)
