@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	paho "github.com/eclipse/paho.mqtt.golang"
+	"go-connector/filters"
 	"go-connector/global"
 	"go-connector/libs/mqtt_client"
 	"go-connector/libs/package_coder"
@@ -30,16 +31,27 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 		logger.ERROR.Println("json.unmarshal push payload failed", zap.Error(e))
 		return
 	}
-	pkgId, dpkg := decodeResp(msg.Topic(), msg.MessageID(), &rec)
+
+	logger.DEBUG.Println("res,ws", "decodeResp", zap.String("payload", string(msg.Payload())))
+
+	pkgId, dpkg, err := decodeResp(msg.Topic(), msg.MessageID(), &rec)
 	if v, exists := m.Callbacks.Pop(fmt.Sprintf("%v", pkgId)); exists {
 		if pkgBelong, ok := v.(*PkgBelong); ok {
+			if err != "null" {
+				logger.ERROR.Println("wrong router requested", zap.String("route", pkgBelong.Route), zap.String("error", err))
+				dpkg = filters.NoRouteFilter(pkgBelong.Route, pkgBelong.ClientPkgID, pkgBelong.CompressRoute, pkgBelong.CompressGzip)
+			}
+
 			dpkg.Sid = pkgBelong.SID
 			dpkg.Route = pkgBelong.Route
 			dpkg.PkgID = pkgBelong.ClientPkgID
 			dpkg.MType = pomelo_coder.Message["TYPE_RESPONSE"]
+			dpkg.CompressGzip = pkgBelong.CompressGzip
+			dpkg.CompressRoute = pkgBelong.CompressRoute
+
 			if v, ok := global.SidFrontChanStore.Get(strconv.FormatUint(uint64(pkgBelong.SID), 10)); ok {
 				if ch, ok := v.(chan package_coder.BackendMsg); ok {
-					ch <- *dpkg // todo 使用指针会好一些？
+					ch <- dpkg
 				}
 			} else {
 				logger.ERROR.Println("cannot find user channel by sessionId", zap.Uint32("sessionId", pkgBelong.SID), zap.String("payload", string(msg.Payload())))
@@ -51,10 +63,11 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 	}
 }
 
-func decodeResp(_ string, _ uint16, rec *package_coder.RawRecv) (pkgId uint64, u *BackendMsg) {
-	u = &BackendMsg{}
+func decodeResp(_ string, _ uint16, rec *package_coder.RawRecv) (pkgId uint64, u BackendMsg, err string) {
+	u = BackendMsg{}
 	if rec.Resp != nil {
 		pkgId = rec.Id
+		err = string(rec.Resp[0])
 		if len(rec.Resp) >= 2 && rec.Resp[1] != nil {
 			u.Payload = rec.Resp[1]
 		}

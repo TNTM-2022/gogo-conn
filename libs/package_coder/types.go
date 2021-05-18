@@ -75,6 +75,9 @@ type PkgBelong struct {
 	StartAt     time.Time
 	ClientPkgID uint64
 	Route       string
+
+	CompressRoute bool // 是否压缩陆游
+	CompressGzip  bool // 是否使用 gzip
 }
 
 var pkgMap = concurrentMap.New() // 记录发往后端的 packageId

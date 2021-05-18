@@ -403,7 +403,7 @@ function create() {
                 return o;
             } else {
                 jsonCoder(isPush ? 'push' : 'resp', route, msg.body);
-
+console.log(Protocol.strdecode(msg.body))
                 return JSON.parse(Protocol.strdecode(msg.body));
             }
 

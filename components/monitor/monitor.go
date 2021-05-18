@@ -252,7 +252,7 @@ func handleMonitorTopic(mqttClient *mqtt.MQTT, m paho.Message) {
 		}
 	}
 
-	if req != nil { // todo 应该不存在
+	if req != nil { // 应该不存在
 		Request(mqttClient, "monitor", monit.ModuleID, req, func(err string, data []byte) {
 			logger.INFO.Println("get a response after request to master", zap.String("error", err), zap.String("data", string(data)))
 		})

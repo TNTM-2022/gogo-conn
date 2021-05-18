@@ -47,7 +47,7 @@ func init() {
 	})
 }
 
-// todo 服务器相关操作 是不是需要单独开个 goroutine 进行操作呢？， 防止请求间隔太短以及锁没有顺序带来的潜在问题呢？ 排除因为报文前后顺序
+// todo 服务器相关操作 是不是需要单独开个 goroutine 进行操作呢？， 防止请求间隔太短以及锁没有顺序带来的潜在问题呢？ 排除因为报文前后顺序； 可以删除锁了？
 
 func MonitorHandler(action string, ss types.MonitorBody) (req, respBody, respErr, notify []byte) {
 	switch action {
@@ -179,9 +179,9 @@ func add(serv types.RegisterInfo) {
 		}
 
 		v, _ := oldV.(*mqtt_client.MQTT)
+		// 停止消息转发， 然后再停止server client
 		go v.Stop(5)
 		logger.DEBUG.Println("monitor,monitor_watcher,add_server", "client stopping", zap.String("serverId", v.ClientID))
-		// todo 停止消息转发， 然后再停止server client
 		return newV
 	})
 	servOptLocker.Unlock()

@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"go-connector/config"
+	"go-connector/filters"
 	"go-connector/global"
 	"go-connector/libs/package_coder"
 	libPomeloCoder "go-connector/libs/pomelo_coder"
@@ -212,7 +213,8 @@ func ws(c echo.Context) error {
 									}
 								}
 							} else {
-								// todo 请路径不存在, 增加全局 路径不存在拦截
+								// todo 请路径不存在, 增加全局 路径不存在拦截 已经写了
+								MsgFront <- filters.NoRouteFilter(backendMsg.Route, backendMsg.PkgID, backendMsg.CompressRoute, backendMsg.CompressGzip)
 								logger.ERROR.Println("cannot find route", zap.String("route", backendMsg.Route), zap.String("serverType", serverType))
 							}
 						}

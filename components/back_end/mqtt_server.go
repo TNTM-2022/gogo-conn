@@ -99,7 +99,7 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 					replyResponse(conn, pkgId, err)
 					return
 				}
-				// todo 删除键值
+				// todo 删除session键值
 			}
 		default:
 			{
