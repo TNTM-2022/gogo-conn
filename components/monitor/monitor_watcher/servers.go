@@ -232,6 +232,9 @@ func add(serv types.RegisterInfo) {
 						StartAt:     time.Now(),
 						ClientPkgID: msg.PkgID,
 						Route:       msg.Route,
+
+						CompressRoute: msg.CompressRoute,
+						CompressGzip:  msg.CompressGzip,
 					}) {
 						forwardChan <- msg
 						logger.ERROR.Println("send msg failed for remote closed")
