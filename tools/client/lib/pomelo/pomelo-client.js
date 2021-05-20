@@ -262,7 +262,7 @@ function create() {
         handshakeInit(data);
 
         var obj = Package.encode(Package.TYPE_HANDSHAKE_ACK);
-        console.log('hand shake ack', obj, obj.toString())
+        // console.log('hand shake ack', obj, obj.toString())
         try {
             send(obj);
         } catch (e) {
@@ -289,7 +289,7 @@ function create() {
         if (!(msg.id > 0) && msg.route.startsWith('_.')) {
             msg.route = msg.route.slice(2);
         }
-        console.log(msg)
+        // console.log(msg)
         msg.body = deCompose(msg);
 
         processMessage(pomelo, msg);
@@ -358,7 +358,7 @@ function create() {
         var isPush = !(msg.id > 0);
         // var protos = !!pomelo.data.protos ? pomelo.data.protos.server : {};
         if (!pomelo.data || !pomelo.data.abbrs) {
-            console.log(msg)
+            // console.log(msg)
         }
         var abbrs = pomelo.data?.abbrs || {};
         var route = msg.route;
@@ -403,7 +403,7 @@ function create() {
                 return o;
             } else {
                 jsonCoder(isPush ? 'push' : 'resp', route, msg.body);
-console.log(Protocol.strdecode(msg.body))
+// console.log(Protocol.strdecode(msg.body))
                 return JSON.parse(Protocol.strdecode(msg.body));
             }
 
@@ -428,7 +428,7 @@ console.log(Protocol.strdecode(msg.body))
         if (typeof handshakeCallback === 'function') {
             handshakeCallback(data.user);
         }
-        console.log('handshakeInited')
+        // console.log('handshakeInited')
     };
 
     //Initilize data used in pomelo client
@@ -439,7 +439,7 @@ console.log(Protocol.strdecode(msg.body))
         pomelo.data = pomelo.data || {};
         var dict = data.sys.dict;
         var protos = data.sys.protos;
-        console.log("intDate")
+        // console.log("intDate")
         //Init compress dict
         if (!!dict) {
             pomelo.data.dict = dict;

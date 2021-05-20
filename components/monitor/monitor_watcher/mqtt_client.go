@@ -51,6 +51,7 @@ func OnPublishHandler(m *mqtt_client.MQTT, _ paho.Client, msg paho.Message) {
 
 			if v, ok := global.SidFrontChanStore.Get(strconv.FormatUint(uint64(pkgBelong.SID), 10)); ok {
 				if ch, ok := v.(chan package_coder.BackendMsg); ok {
+					fmt.Println("mqtt_write")
 					ch <- dpkg
 				}
 			} else {

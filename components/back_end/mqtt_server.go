@@ -59,8 +59,8 @@ func replyResponse(conn *mqtt.Conn, pkgId uint64, err string) {
 	}
 }
 func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGroup) {
-	defer f()
-	defer wg.Done()
+	//defer f()
+	//defer wg.Done()
 
 	//s.OnSubscribe(handleSubscribe)
 	//s.OnUnSubscribe(handleUnSubscribe)
@@ -109,5 +109,5 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 		}
 		fmt.Println("module not implemented")
 	})
-	<-ctx.Done()
+	//<-ctx.Done()
 }

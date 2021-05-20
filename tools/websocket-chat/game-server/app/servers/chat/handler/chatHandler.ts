@@ -9,7 +9,7 @@ export class ChatHandler {
     }
 
     async test(msg, session: BackendSession) {
-        {
+       if (false) {
             console.log('push message 1')
             let channelService = this.app.get('channelService');
             channelService.createChannel("test123")

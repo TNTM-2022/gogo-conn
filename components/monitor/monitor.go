@@ -21,7 +21,7 @@ import (
 )
 
 func StartMonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync.WaitGroup) {
-	defer wg.Done()
+	//defer wg.Done()
 
 	client := mqtt.CreateMQTTClient(&mqtt.MQTT{
 		Host:            cfg.MasterHost,
@@ -38,9 +38,9 @@ func StartMonitServer(ctx context.Context, cancelFn context.CancelFunc, wg *sync
 			onPublishCb(client, msg)
 		}
 	})
-	client.Start()
+	go client.Start()
 
-	<-ctx.Done()
+	//<-ctx.Done()
 	// 客户端退出
 }
 

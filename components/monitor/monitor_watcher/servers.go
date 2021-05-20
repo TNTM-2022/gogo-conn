@@ -158,7 +158,7 @@ func add(serv types.RegisterInfo) {
 	})
 
 	client.SetCallbacks(nil, func(c paho.Client, msg paho.Message) {
-		OnPublishHandler(client, c, msg)
+		go OnPublishHandler(client, c, msg)
 	})
 
 	// 初始化 serverType：chan  serverType：serverId：serverInfo

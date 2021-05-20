@@ -151,6 +151,7 @@ func ws(c echo.Context) error {
 					if b == nil {
 						return
 					}
+					fmt.Println("write..")
 					if err := ws.WriteMessage(websocket.BinaryMessage, b); err != nil {
 						logger.ERROR.Println("msg push channel closed", zap.Error(err))
 						return
@@ -234,7 +235,7 @@ func StartFrontServer() {
 	// Routes
 	e.GET("/ws", ws)
 
-	e.Any("/debug/pprof/", func(ctx echo.Context) error {
+	e.GET("/debug/pprof/", func(ctx echo.Context) error {
 		pprof.Index(ctx.Response().Writer, ctx.Request())
 		return nil
 	})
@@ -260,5 +261,7 @@ func StartFrontServer() {
 		return nil
 	})
 
-	e.Logger.Fatal(e.Start("127.0.0.1:23456"))
+	go func() {
+		e.Logger.Fatal(e.Start("127.0.0.1:23456"))
+	}()
 }
