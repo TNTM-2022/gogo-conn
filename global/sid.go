@@ -1,10 +1,9 @@
 package global
 
 import (
+	"math"
 	"sync"
 )
-
-const UserCap = 100
 
 //func init() {
 //	for i := 1; i <= UserCap; i++ {
@@ -41,55 +40,16 @@ const UserCap = 100
 //	return
 //}
 
-func init() {
-	for i := 1; i <= UserCap; i++ {
-		addSid(uint32(i))
+var sidP uint32
+var sidLocker sync.Mutex
+
+func GetSid() (sid uint32) {
+	sidLocker.Lock()
+	defer sidLocker.Unlock()
+	sidP++
+	if sidP > math.MaxUint32-1 {
+		sidP = 1
 	}
-}
-
-type sidType struct {
-	next *sidType
-	sid  uint32
-}
-type sidHead struct {
-	start  *sidType
-	end    *sidType
-	len    int
-	locker sync.Mutex
-}
-
-var sidsHead = sidHead{}
-
-func GetSid() (sid uint32, ok bool) {
-	sidsHead.locker.Lock()
-	defer sidsHead.locker.Unlock()
-	if sidsHead.start == nil {
-		sidsHead.end = nil
-		return
-	}
-	sidsHead.len--
-	sid = sidsHead.start.sid
-	ok = true
-	sidsHead.start = sidsHead.start.next
+	sid = sidP
 	return
-}
-func BackSid(sid uint32) { // 内存可能会出现问题， 最好用 栈 方式
-	sidsHead.locker.Lock()
-	defer sidsHead.locker.Unlock()
-	addSid(sid)
-}
-func CountSid() int {
-	return sidsHead.len
-}
-
-func addSid(i uint32) {
-	sid := &sidType{sid: uint32(i)}
-	if sidsHead.start == nil {
-		sidsHead.start = sid
-		sidsHead.end = sid
-	} else {
-		sidsHead.end.next = sid
-		sidsHead.end = sid
-	}
-	sidsHead.len++
 }

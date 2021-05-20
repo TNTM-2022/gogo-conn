@@ -116,17 +116,7 @@ func (s *sessionType) Unbind() {
 	s.Uid = 0
 }
 func (s *sessionType) Destroy() {
-	if s.Uid > 0 {
-		uidSid.RemoveCb(fmt.Sprintf("%v", s.Uid), func(k string, v interface{}, exists bool) bool {
-			if !exists {
-				return false
-			}
-			if _uid, ok := v.(uint32); ok && _uid == s.Uid {
-				return true
-			}
-			return false
-		})
-	}
+	uidSid.Remove(fmt.Sprintf("%v", s.Uid))
 	sessions.Remove(fmt.Sprintf("%v", s.Sid))
 }
 

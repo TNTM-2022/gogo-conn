@@ -30,6 +30,14 @@ func init() {
 		logger.ERROR.Println("mqtt server start failed", zap.Error(err))
 		os.Exit(-1)
 	}
+
+	h, p, err := net.SplitHostPort(s.Addr().String())
+	port, _ := strconv.ParseInt(p, 10, 32)
+	logger.DEBUG.Println("backend,mqtt_server", "mqtt start ==>>", zap.String("host", h), zap.String("_port", p), zap.Error(err), zap.Int64("port", port), zap.String("addr", s.Addr().String()))
+	config.MqttServerPort = int(port)
+	if err != nil {
+		log.Panicln(err)
+	}
 }
 
 type reply struct {
@@ -54,13 +62,6 @@ func StartMqttServer(ctx context.Context, f context.CancelFunc, wg *sync.WaitGro
 	defer f()
 	defer wg.Done()
 
-	h, p, err := net.SplitHostPort(s.Addr().String())
-	port, _ := strconv.ParseInt(p, 10, 32)
-	logger.DEBUG.Println("backend,mqtt_server", "mqtt start ==>>", zap.String("host", h), zap.String("_port", p), zap.Error(err), zap.Int64("port", port), zap.String("addr", s.Addr().String()))
-	config.MqttServerPort = int(port)
-	if err != nil {
-		log.Panicln(err)
-	}
 	//s.OnSubscribe(handleSubscribe)
 	//s.OnUnSubscribe(handleUnSubscribe)
 	s.OnPublish(func(conn *mqtt.Conn, _ string, _ uint16, b []byte) {

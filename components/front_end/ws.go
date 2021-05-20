@@ -120,36 +120,27 @@ func ws(c echo.Context) error {
 	}()
 
 	pomeloCoder := libPomeloCoder.InitCoder()
-	sid, ok := global.GetSid()
-	if !ok {
-		return nil
-	}
-	defer global.BackSid(sid)
+	sid := global.GetSid()
+
 	_sid := fmt.Sprintf("%v", sid)
 
 	session := global.CreateSession(sid)
+	defer session.Destroy()
 	if !session.Bind(sid) {
 		logger.INFO.Println("userId bind error", zap.Uint32("sessionId", sid))
 		return nil
 	}
-	defer session.Destroy()
 
 	MsgFront := make(chan package_coder.BackendMsg, 100)
-	defer func() {
-		close(MsgFront)
-		for range MsgFront {
-			logger.DEBUG.Println("front_end,ws,send_msg,req,res,push", "msg lost for cleaning")
-		}
-	}()
+
 	global.SidFrontChanStore.Set(_sid, MsgFront)
 	defer global.SidFrontChanStore.Remove(_sid)
-	_running := true
+
 	go func() {
 		defer func() {
-			_running = false
 			fmt.Println("close 1")
 		}()
-		for _running {
+		for {
 			// Write
 			select {
 			//case <-ctx.Done():
@@ -171,9 +162,12 @@ func ws(c echo.Context) error {
 
 	func() {
 		defer func() {
-			_running = false
+			close(MsgFront)
+			for range MsgFront {
+				logger.DEBUG.Println("front_end,ws,send_msg,req,res,push", "msg lost for cleaning")
+			}
 		}()
-		for _running {
+		for {
 			// Read
 			messageType, p, err := ws.ReadMessage()
 			if err != nil {

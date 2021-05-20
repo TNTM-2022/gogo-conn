@@ -27,7 +27,7 @@ async function run(n) {
 } // ().catch(console.error);
 
 void async function () {
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 100; i++) {
         run(i)
     }
 }()
